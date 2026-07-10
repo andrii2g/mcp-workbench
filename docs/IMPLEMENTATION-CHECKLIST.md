@@ -31,17 +31,17 @@ tests, and documentation for that item are present.
 
 ## Phase 2 — Registry persistence
 
-- [ ] Implement schema-v1 registry document.
-- [ ] Implement initial missing-file creation.
-- [ ] Implement strict load and validation.
-- [ ] Implement immutable snapshot reads.
-- [ ] Implement serialized create/replace/delete.
-- [ ] Implement temp-write, flush, atomic replace.
-- [ ] Preserve original file on write failure.
-- [ ] Add revision handling.
-- [ ] Add registry readiness state.
-- [ ] Test malformed/unsupported/concurrent/failure cases.
-- [ ] Verify UTF-8 without BOM output.
+- [x] Implement schema-v1 registry document.
+- [x] Implement initial missing-file creation.
+- [x] Implement strict load and validation.
+- [x] Implement immutable snapshot reads.
+- [x] Implement serialized create/replace/delete.
+- [x] Implement temp-write, flush, atomic replace.
+- [x] Preserve original file on write failure.
+- [x] Add revision handling.
+- [x] Add registry readiness state.
+- [x] Test malformed/unsupported/concurrent/failure cases.
+- [x] Verify UTF-8 without BOM output.
 
 ## Phase 3 — Secrets and redaction
 

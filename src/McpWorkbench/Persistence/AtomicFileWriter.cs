@@ -16,6 +16,7 @@ internal sealed class AtomicFileWriter : IAtomicFileWriter
         Directory.CreateDirectory(directory);
 
         var temporaryPath = path + ".tmp";
+        var ownsTemporaryFile = false;
         try
         {
             await using (var stream = new FileStream(
@@ -26,6 +27,7 @@ internal sealed class AtomicFileWriter : IAtomicFileWriter
                 bufferSize: 16_384,
                 FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
+                ownsTemporaryFile = true;
                 await stream.WriteAsync(content, cancellationToken);
                 await stream.FlushAsync(cancellationToken);
                 stream.Flush(flushToDisk: true);
@@ -35,7 +37,11 @@ internal sealed class AtomicFileWriter : IAtomicFileWriter
         }
         catch
         {
-            TryDeleteTemporaryFile(temporaryPath);
+            if (ownsTemporaryFile)
+            {
+                TryDeleteTemporaryFile(temporaryPath);
+            }
+
             throw;
         }
     }

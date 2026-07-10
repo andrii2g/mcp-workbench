@@ -1,6 +1,8 @@
 using System.Text.Json;
+using McpWorkbench.Contracts;
 using McpWorkbench.Domain;
 using McpWorkbench.Serialization;
+using McpWorkbench.Validation;
 
 namespace McpWorkbench.Persistence;
 
@@ -211,10 +213,44 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
             throw Corrupt("Registry document has invalid metadata.");
         }
 
+        if (document.Servers.Any(server => server is null || server.Name is null))
+        {
+            throw Corrupt("Registry document contains a null server or server name.");
+        }
+
         if (document.Servers.Select(server => server.Id).Distinct().Count() != document.Servers.Count ||
             document.Servers.Select(server => server.Name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != document.Servers.Count)
         {
             throw Corrupt("Registry document contains duplicate server identifiers or names.");
+        }
+
+        foreach (var server in document.Servers)
+        {
+            if (server.Id == Guid.Empty || server.CreatedAtUtc.Offset != TimeSpan.Zero || server.UpdatedAtUtc.Offset != TimeSpan.Zero)
+            {
+                throw Corrupt("Registry document contains invalid server metadata.");
+            }
+
+            var request = new CreateServerRequest(
+                server.Name,
+                server.Description,
+                server.Enabled,
+                server.Transport,
+                server.Stdio is null ? null : new StdioTransportRequest(
+                    server.Stdio.Command,
+                    server.Stdio.Arguments,
+                    server.Stdio.WorkingDirectory,
+                    server.Stdio.Environment,
+                    server.Stdio.ShutdownTimeoutSeconds),
+                server.Http is null ? null : new HttpTransportRequest(
+                    server.Http.Endpoint,
+                    server.Http.Mode,
+                    server.Http.Headers),
+                server.OperationTimeoutSeconds);
+            if (!ServerDefinitionValidator.Validate(request).IsValid)
+            {
+                throw Corrupt("Registry document contains an invalid server definition.");
+            }
         }
     }
 

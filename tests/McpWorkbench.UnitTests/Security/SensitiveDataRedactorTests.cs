@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using McpWorkbench.Security;
+using Microsoft.Extensions.Logging;
 
 namespace McpWorkbench.UnitTests.Security;
 

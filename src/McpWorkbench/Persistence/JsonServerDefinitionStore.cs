@@ -3,6 +3,7 @@ using McpWorkbench.Contracts;
 using McpWorkbench.Domain;
 using McpWorkbench.Serialization;
 using McpWorkbench.Validation;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace McpWorkbench.Persistence;
 
@@ -11,14 +12,23 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
     private readonly string _path;
     private readonly IAtomicFileWriter _writer;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<JsonServerDefinitionStore> _logger;
+    private readonly int _maximumOperationTimeoutSeconds;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private RegistryDocument? _snapshot;
 
-    public JsonServerDefinitionStore(string path, IAtomicFileWriter writer, TimeProvider timeProvider)
+    public JsonServerDefinitionStore(
+        string path,
+        IAtomicFileWriter writer,
+        TimeProvider timeProvider,
+        ILogger<JsonServerDefinitionStore>? logger = null,
+        int maximumOperationTimeoutSeconds = 300)
     {
         _path = Path.GetFullPath(path);
         _writer = writer;
         _timeProvider = timeProvider;
+        _logger = logger ?? NullLogger<JsonServerDefinitionStore>.Instance;
+        _maximumOperationTimeoutSeconds = maximumOperationTimeoutSeconds;
     }
 
     public async ValueTask InitializeAsync(CancellationToken cancellationToken)
@@ -29,6 +39,11 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
             if (_snapshot is not null)
             {
                 return;
+            }
+
+            if (File.Exists(_path + ".tmp"))
+            {
+                RegistryLog.StaleTemporaryFile(_logger, _path + ".tmp");
             }
 
             if (!File.Exists(_path))
@@ -99,6 +114,7 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
         try
         {
             var current = RequiredSnapshot();
+            ValidateDefinition(definition, "server_definition_invalid");
             if (current.Servers.Any(server => server.Id == definition.Id))
             {
                 throw new RegistryException("server_id_conflict", "A server with this identifier already exists.");
@@ -122,6 +138,7 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
         try
         {
             var current = RequiredSnapshot();
+            ValidateDefinition(definition, "server_definition_invalid");
             var index = FindIndex(current.Servers, definition.Id);
             if (index < 0)
             {
@@ -201,14 +218,14 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
         }
     }
 
-    private static void Validate(RegistryDocument document)
+    private void Validate(RegistryDocument document)
     {
         if (document.SchemaVersion != RegistryDocument.CurrentSchemaVersion)
         {
             throw new RegistryException("unsupported_registry_version", "Registry schema version is unsupported.");
         }
 
-        if (document.Revision < 0 || document.Servers is null)
+        if (document.Revision < 0 || document.UpdatedAtUtc.Offset != TimeSpan.Zero || document.Servers is null)
         {
             throw Corrupt("Registry document has invalid metadata.");
         }
@@ -226,31 +243,36 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
 
         foreach (var server in document.Servers)
         {
-            if (server.Id == Guid.Empty || server.CreatedAtUtc.Offset != TimeSpan.Zero || server.UpdatedAtUtc.Offset != TimeSpan.Zero)
-            {
-                throw Corrupt("Registry document contains invalid server metadata.");
-            }
+            ValidateDefinition(server, "registry_corrupt");
+        }
+    }
 
-            var request = new CreateServerRequest(
-                server.Name,
-                server.Description,
-                server.Enabled,
-                server.Transport,
-                server.Stdio is null ? null : new StdioTransportRequest(
-                    server.Stdio.Command,
-                    server.Stdio.Arguments,
-                    server.Stdio.WorkingDirectory,
-                    server.Stdio.Environment,
-                    server.Stdio.ShutdownTimeoutSeconds),
-                server.Http is null ? null : new HttpTransportRequest(
-                    server.Http.Endpoint,
-                    server.Http.Mode,
-                    server.Http.Headers),
-                server.OperationTimeoutSeconds);
-            if (!ServerDefinitionValidator.Validate(request).IsValid)
-            {
-                throw Corrupt("Registry document contains an invalid server definition.");
-            }
+    private void ValidateDefinition(McpServerDefinition server, string errorCode)
+    {
+        if (server.Id == Guid.Empty || server.CreatedAtUtc.Offset != TimeSpan.Zero || server.UpdatedAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new RegistryException(errorCode, "Server definition contains invalid metadata.");
+        }
+
+        var request = new CreateServerRequest(
+            server.Name,
+            server.Description,
+            server.Enabled,
+            server.Transport,
+            server.Stdio is null ? null : new StdioTransportRequest(
+                server.Stdio.Command,
+                server.Stdio.Arguments,
+                server.Stdio.WorkingDirectory,
+                server.Stdio.Environment,
+                server.Stdio.ShutdownTimeoutSeconds),
+            server.Http is null ? null : new HttpTransportRequest(
+                server.Http.Endpoint,
+                server.Http.Mode,
+                server.Http.Headers),
+            server.OperationTimeoutSeconds);
+        if (!ServerDefinitionValidator.Validate(request, _maximumOperationTimeoutSeconds).IsValid)
+        {
+            throw new RegistryException(errorCode, "Server definition is invalid.");
         }
     }
 
@@ -303,4 +325,10 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
 
     private static RegistryException Unavailable(string message, Exception exception) =>
         new("registry_unavailable", message, exception);
+}
+
+internal static partial class RegistryLog
+{
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Warning, Message = "Stale registry temporary file found at {TemporaryPath}; it will not be promoted")]
+    public static partial void StaleTemporaryFile(ILogger logger, string temporaryPath);
 }

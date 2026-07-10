@@ -5,6 +5,12 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables()
+    .AddCommandLine(args);
+
 if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
 {
     builder.WebHost.UseUrls("http://127.0.0.1:5070");
@@ -28,7 +34,9 @@ builder.Services.AddSingleton<IServerDefinitionStore>(services =>
     return new JsonServerDefinitionStore(
         options.RegistryPath,
         services.GetRequiredService<IAtomicFileWriter>(),
-        services.GetRequiredService<TimeProvider>());
+        services.GetRequiredService<TimeProvider>(),
+        services.GetRequiredService<ILogger<JsonServerDefinitionStore>>(),
+        options.MaximumOperationTimeoutSeconds);
 });
 
 var app = builder.Build();

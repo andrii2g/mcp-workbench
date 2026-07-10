@@ -4,7 +4,7 @@ internal sealed class SecurityOptions
 {
     public const string SectionName = "Security";
 
-    public string? ApiKey { get; init; }
-    public bool ProtectStaticUi { get; init; }
-    public int TrustedProxyCount { get; init; }
+    public string? ApiKey { get; set; }
+    public bool ProtectStaticUi { get; set; }
+    public int TrustedProxyCount { get; set; }
 }

@@ -83,6 +83,20 @@ public sealed class JsonServerDefinitionStoreTests
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenFileIsEmpty_ReturnsCorruptWithoutOverwrite()
+    {
+        using var directory = new TestDirectory();
+        await File.WriteAllBytesAsync(directory.RegistryPath, [], TestContext.Current.CancellationToken);
+        using var store = CreateStore(directory.RegistryPath);
+
+        var exception = await Assert.ThrowsAsync<RegistryException>(async () =>
+            await store.InitializeAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("registry_corrupt", exception.Code);
+        Assert.Empty(await File.ReadAllBytesAsync(directory.RegistryPath, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task InitializeAsync_WhenSchemaVersionIsUnsupported_ReturnsTypedError()
     {
         using var directory = new TestDirectory();
@@ -111,6 +125,24 @@ public sealed class JsonServerDefinitionStoreTests
             directory.RegistryPath,
             JsonSerializer.SerializeToUtf8Bytes(document, AppJsonSerializerContext.Default.RegistryDocument),
             TestContext.Current.CancellationToken);
+        using var store = CreateStore(directory.RegistryPath);
+
+        var exception = await Assert.ThrowsAsync<RegistryException>(async () =>
+            await store.InitializeAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("registry_corrupt", exception.Code);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenRegistryContainsDuplicateIds_ReturnsCorruptError()
+    {
+        using var directory = new TestDirectory();
+        var first = Definition("First");
+        var document = RegistryDocument.Empty(DateTimeOffset.UnixEpoch) with
+        {
+            Servers = [first, Definition("Second") with { Id = first.Id }]
+        };
+        await WriteDocumentAsync(directory.RegistryPath, document);
         using var store = CreateStore(directory.RegistryPath);
 
         var exception = await Assert.ThrowsAsync<RegistryException>(async () =>
@@ -174,6 +206,64 @@ public sealed class JsonServerDefinitionStoreTests
         Assert.Collection(snapshot.Servers, server => Assert.Equal(first.Id, server.Id));
     }
 
+    [Fact]
+    public async Task CreateAsync_WhenDefinitionIsInvalid_RejectsBeforeWriting()
+    {
+        using var directory = new TestDirectory();
+        using var store = CreateStore(directory.RegistryPath);
+
+        var exception = await Assert.ThrowsAsync<RegistryException>(async () =>
+            await store.CreateAsync(Definition(" "), TestContext.Current.CancellationToken));
+
+        Assert.Equal("server_definition_invalid", exception.Code);
+        Assert.Equal(0, (await store.GetSnapshotAsync(TestContext.Current.CancellationToken)).Revision);
+    }
+
+    [Fact]
+    public async Task GetSnapshotAsync_WhenReturnedCollectionsAreMutated_DoesNotChangeStoredSnapshot()
+    {
+        using var directory = new TestDirectory();
+        using var store = CreateStore(directory.RegistryPath);
+        await store.CreateAsync(Definition("Demo"), TestContext.Current.CancellationToken);
+        var snapshot = await store.GetSnapshotAsync(TestContext.Current.CancellationToken);
+        var environment = Assert.IsType<Dictionary<string, string>>(snapshot.Servers[0].Stdio?.Environment);
+        environment["INJECTED"] = "value";
+
+        var nextSnapshot = await store.GetSnapshotAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(nextSnapshot.Servers[0].Stdio?.Environment ?? new Dictionary<string, string>());
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenHttpDefinitionIsValid_RoundTripsDefinition()
+    {
+        using var directory = new TestDirectory();
+        var definition = HttpDefinition("Remote");
+        await WriteDocumentAsync(
+            directory.RegistryPath,
+            RegistryDocument.Empty(DateTimeOffset.UnixEpoch) with { Servers = [definition] });
+        using var store = CreateStore(directory.RegistryPath);
+
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        var loaded = await store.GetAsync(definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://example.test/mcp", loaded?.Http?.Endpoint);
+        Assert.Equal("Bearer ${ENV:TOKEN}", loaded?.Http?.Headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenStaleTemporaryFileExists_LeavesItUntouched()
+    {
+        using var directory = new TestDirectory();
+        await WriteDocumentAsync(directory.RegistryPath, RegistryDocument.Empty(DateTimeOffset.UnixEpoch));
+        await File.WriteAllTextAsync(directory.RegistryPath + ".tmp", "stale", TestContext.Current.CancellationToken);
+        using var store = CreateStore(directory.RegistryPath);
+
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("stale", await File.ReadAllTextAsync(directory.RegistryPath + ".tmp", TestContext.Current.CancellationToken));
+    }
+
     private static JsonServerDefinitionStore CreateStore(string path) =>
         new(path, new AtomicFileWriter(), TimeProvider.System);
 
@@ -188,6 +278,27 @@ public sealed class JsonServerDefinitionStoreTests
         30,
         DateTimeOffset.UnixEpoch,
         DateTimeOffset.UnixEpoch);
+
+    private static McpServerDefinition HttpDefinition(string name) => new(
+        Guid.NewGuid(),
+        name,
+        null,
+        true,
+        McpTransportKind.Http,
+        null,
+        new HttpTransportSettings(
+            "https://example.test/mcp",
+            McpHttpMode.Auto,
+            new Dictionary<string, string> { ["Authorization"] = "Bearer ${ENV:TOKEN}" }),
+        30,
+        DateTimeOffset.UnixEpoch,
+        DateTimeOffset.UnixEpoch);
+
+    private static Task WriteDocumentAsync(string path, RegistryDocument document) =>
+        File.WriteAllBytesAsync(
+            path,
+            JsonSerializer.SerializeToUtf8Bytes(document, AppJsonSerializerContext.Default.RegistryDocument),
+            TestContext.Current.CancellationToken);
 
     private static bool HasUtf8Bom(byte[] bytes) =>
         bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;

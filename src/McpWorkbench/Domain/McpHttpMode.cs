@@ -1,8 +1,9 @@
 using System.Text.Json.Serialization;
+using McpWorkbench.Serialization;
 
 namespace McpWorkbench.Domain;
 
-[JsonConverter(typeof(JsonStringEnumConverter<McpHttpMode>))]
+[JsonConverter(typeof(McpHttpModeJsonConverter))]
 internal enum McpHttpMode
 {
     Auto,

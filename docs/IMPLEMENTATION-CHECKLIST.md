@@ -19,15 +19,15 @@ tests, and documentation for that item are present.
 
 ## Phase 1 — Domain and validation
 
-- [ ] Implement server definition and transport option records.
-- [ ] Implement transport/runtime enums.
-- [ ] Implement app error/result types.
-- [ ] Implement explicit common validation.
-- [ ] Implement stdio validation.
-- [ ] Implement HTTP validation.
-- [ ] Implement normalized unique-name rule.
-- [ ] Add exhaustive validator unit tests.
-- [ ] Register all DTOs in source-generated JSON context.
+- [x] Implement server definition and transport option records.
+- [x] Implement transport/runtime enums.
+- [x] Implement app error/result types.
+- [x] Implement explicit common validation.
+- [x] Implement stdio validation.
+- [x] Implement HTTP validation.
+- [x] Implement normalized unique-name rule.
+- [x] Add exhaustive validator unit tests.
+- [x] Register all DTOs in source-generated JSON context.
 
 ## Phase 2 — Registry persistence
 

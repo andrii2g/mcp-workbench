@@ -57,7 +57,6 @@ public sealed class ServerDefinitionValidatorTests
     [Theory]
     [InlineData((int)McpTransportKind.Stdio, false, false)]
     [InlineData((int)McpTransportKind.Stdio, true, true)]
-    [InlineData((int)McpTransportKind.Http, false, true)]
     [InlineData((int)McpTransportKind.Http, true, false)]
     [InlineData((int)McpTransportKind.Http, true, true)]
     public void Validate_WhenTransportSettingsDoNotMatch_ReturnsTransportError(

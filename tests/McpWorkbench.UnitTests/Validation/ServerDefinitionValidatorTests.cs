@@ -102,6 +102,41 @@ public sealed class ServerDefinitionValidatorTests
     }
 
     [Theory]
+    [InlineData("BAD\nNAME", "value")]
+    [InlineData("NAME", "bad\nvalue")]
+    public void Validate_WhenEnvironmentContainsControlCharacters_ReturnsEnvironmentError(string name, string value)
+    {
+        var environment = new Dictionary<string, string> { [name] = value };
+        var request = ValidStdio() with { Stdio = ValidStdio().Stdio! with { Environment = environment } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field.StartsWith("stdio.environment", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_WhenEnvironmentValueIsNull_ReturnsEnvironmentError()
+    {
+        var environment = new Dictionary<string, string> { ["TOKEN"] = null! };
+        var request = ValidStdio() with { Stdio = ValidStdio().Stdio! with { Environment = environment } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "stdio.environment.TOKEN");
+    }
+
+    [Fact]
+    public void Validate_WhenHeaderValueIsNull_ReturnsHeaderError()
+    {
+        var headers = new Dictionary<string, string> { ["Authorization"] = null! };
+        var request = ValidHttp() with { Http = ValidHttp().Http! with { Headers = headers } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "http.headers.Authorization");
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(301)]
     public void Validate_WhenOperationTimeoutIsOutsideRange_ReturnsTimeoutError(int timeout)
@@ -122,6 +157,147 @@ public sealed class ServerDefinitionValidatorTests
         var result = ServerDefinitionValidator.Validate(ValidStdio() with { Name = name });
 
         Assert.Contains(result.Errors, error => error.Field == "name" && error.Code == "required");
+    }
+
+    [Fact]
+    public void Validate_WhenUpdateIsValid_NormalizesValues()
+    {
+        var request = new UpdateServerRequest(
+            "  Updated  ",
+            "  Description  ",
+            true,
+            McpTransportKind.Http,
+            null,
+            ValidHttp().Http,
+            30);
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.True(result.IsValid);
+        Assert.Equal("Updated", result.Value?.Name);
+        Assert.Equal("Description", result.Value?.Description);
+    }
+
+    [Fact]
+    public void Validate_WhenUpdateTransportSettingsMismatch_ReturnsTransportError()
+    {
+        var request = new UpdateServerRequest(
+            "Updated",
+            null,
+            true,
+            McpTransportKind.Http,
+            ValidStdio().Stdio,
+            ValidHttp().Http,
+            30);
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "transport");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(31)]
+    public void Validate_WhenShutdownTimeoutIsOutsideRange_ReturnsError(int timeout)
+    {
+        var request = ValidStdio() with { Stdio = ValidStdio().Stdio! with { ShutdownTimeoutSeconds = timeout } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "stdio.shutdownTimeoutSeconds");
+    }
+
+    [Fact]
+    public void Validate_WhenNameExceedsUnicodeLimit_ReturnsError()
+    {
+        var request = ValidStdio() with { Name = string.Concat(Enumerable.Repeat("😀", 101)) };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "name" && error.Code == "too_long");
+    }
+
+    [Fact]
+    public void Validate_WhenDescriptionExceedsLimit_ReturnsError()
+    {
+        var result = ServerDefinitionValidator.Validate(ValidStdio() with { Description = new string('x', 1001) });
+
+        Assert.Contains(result.Errors, error => error.Field == "description");
+    }
+
+    [Fact]
+    public void Validate_WhenArgumentCountExceedsLimit_ReturnsError()
+    {
+        var arguments = Enumerable.Repeat("x", 129).ToArray();
+        var request = ValidStdio() with { Stdio = ValidStdio().Stdio! with { Arguments = arguments } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "stdio.arguments" && error.Code == "too_many");
+    }
+
+    [Fact]
+    public void Validate_WhenArgumentExceedsLengthLimit_ReturnsError()
+    {
+        var request = ValidStdio() with
+        {
+            Stdio = ValidStdio().Stdio! with { Arguments = [new string('x', 8193)] }
+        };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "stdio.arguments" && error.Code == "invalid");
+    }
+
+    [Fact]
+    public void Validate_WhenEnvironmentCountExceedsLimit_ReturnsError()
+    {
+        var environment = Enumerable.Range(0, 129).ToDictionary(index => $"KEY_{index}", _ => "value");
+        var request = ValidStdio() with { Stdio = ValidStdio().Stdio! with { Environment = environment } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "stdio.environment" && error.Code == "too_many");
+    }
+
+    [Fact]
+    public void Validate_WhenHeaderCountExceedsLimit_ReturnsError()
+    {
+        var headers = Enumerable.Range(0, 65).ToDictionary(index => $"X-Test-{index}", _ => "value");
+        var request = ValidHttp() with { Http = ValidHttp().Http! with { Headers = headers } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "http.headers" && error.Code == "too_many");
+    }
+
+    [Fact]
+    public void Validate_WhenHeaderValueExceedsLengthLimit_ReturnsError()
+    {
+        var headers = new Dictionary<string, string> { ["X-Test"] = new string('x', 8193) };
+        var request = ValidHttp() with { Http = ValidHttp().Http! with { Headers = headers } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "http.headers.X-Test" && error.Code == "invalid");
+    }
+
+    [Fact]
+    public void Validate_WhenCommandExceedsLengthLimit_ReturnsError()
+    {
+        var request = ValidStdio() with { Stdio = ValidStdio().Stdio! with { Command = new string('x', 1025) } };
+
+        var result = ServerDefinitionValidator.Validate(request);
+
+        Assert.Contains(result.Errors, error => error.Field == "stdio.command" && error.Code == "invalid");
+    }
+
+    [Fact]
+    public void Validate_WhenTransportEnumIsUnknown_ReturnsUnsupportedError()
+    {
+        var result = ServerDefinitionValidator.Validate(ValidStdio() with { Transport = (McpTransportKind)99 });
+
+        Assert.Contains(result.Errors, error => error.Field == "transport" && error.Code == "unsupported");
     }
 
     private static CreateServerRequest ValidStdio() => new(

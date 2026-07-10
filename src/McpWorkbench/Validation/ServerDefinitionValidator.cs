@@ -93,6 +93,38 @@ internal static class ServerDefinitionValidator
         return new(normalized, errors);
     }
 
+    public static ValidationResult<UpdateServerRequest> Validate(
+        UpdateServerRequest request,
+        int maximumOperationTimeoutSeconds = 300)
+    {
+        var createResult = Validate(
+            new CreateServerRequest(
+                request.Name,
+                request.Description,
+                request.Enabled,
+                request.Transport,
+                request.Stdio,
+                request.Http,
+                request.OperationTimeoutSeconds),
+            maximumOperationTimeoutSeconds);
+        if (!createResult.IsValid)
+        {
+            return new(null, createResult.Errors);
+        }
+
+        var normalized = createResult.Value!;
+        return new(
+            new UpdateServerRequest(
+                normalized.Name,
+                normalized.Description,
+                normalized.Enabled,
+                normalized.Transport,
+                normalized.Stdio,
+                normalized.Http,
+                normalized.OperationTimeoutSeconds),
+            createResult.Errors);
+    }
+
     private static void ValidateStdio(StdioTransportRequest settings, List<ValidationError> errors)
     {
         var command = settings.Command?.Trim();
@@ -129,7 +161,8 @@ internal static class ServerDefinitionValidator
 
         foreach (var pair in environment)
         {
-            if (string.IsNullOrWhiteSpace(pair.Key) || pair.Key.Contains('=') || ContainsNull(pair.Key) || ContainsNull(pair.Value))
+            if (string.IsNullOrWhiteSpace(pair.Key) || pair.Key.Contains('=') ||
+                ContainsControlCharacter(pair.Key) || pair.Value is null || ContainsControlCharacter(pair.Value))
             {
                 Add(errors, $"stdio.environment.{pair.Key}", "invalid", "Environment names and values must be valid process environment entries.");
             }
@@ -159,7 +192,7 @@ internal static class ServerDefinitionValidator
 
         foreach (var pair in headers)
         {
-            if (!IsHeaderName(pair.Key) || RuntimeControlledHeaders.Contains(pair.Key) ||
+            if (!IsHeaderName(pair.Key) || RuntimeControlledHeaders.Contains(pair.Key) || pair.Value is null ||
                 pair.Value.Length > MaximumHeaderValueLength || ContainsControlCharacter(pair.Value, allowTab: true))
             {
                 Add(errors, $"http.headers.{pair.Key}", "invalid", "Header name or value is invalid or controlled by the HTTP runtime.");

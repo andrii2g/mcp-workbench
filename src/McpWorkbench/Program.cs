@@ -20,8 +20,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default));
 builder.Services.AddOptions<WorkbenchOptions>()
     .Bind(builder.Configuration.GetSection(WorkbenchOptions.SectionName))
-    .Validate(static options => options.MaximumOperationTimeoutSeconds > 0, "Maximum operation timeout must be positive.")
     .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<WorkbenchOptions>, WorkbenchOptionsValidator>();
 builder.Services.AddOptions<SecurityOptions>()
     .Bind(builder.Configuration.GetSection(SecurityOptions.SectionName))
     .Validate(static options => options.TrustedProxyCount >= 0, "Trusted proxy count cannot be negative.")

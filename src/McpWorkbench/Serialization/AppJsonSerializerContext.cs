@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using McpWorkbench.Contracts;
 using McpWorkbench.Domain;
+using McpWorkbench.Persistence;
 using McpWorkbench.Validation;
 
 namespace McpWorkbench.Serialization;
@@ -18,4 +19,5 @@ internal sealed record HealthResponse(string Status);
 [JsonSerializable(typeof(UpdateServerRequest))]
 [JsonSerializable(typeof(ServerRuntimeSnapshot))]
 [JsonSerializable(typeof(ValidationError[]))]
+[JsonSerializable(typeof(RegistryDocument))]
 internal sealed partial class AppJsonSerializerContext : JsonSerializerContext;

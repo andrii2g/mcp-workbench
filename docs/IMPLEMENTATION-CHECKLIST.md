@@ -45,13 +45,13 @@ tests, and documentation for that item are present.
 
 ## Phase 3 — Secrets and redaction
 
-- [ ] Implement `${ENV:NAME}` parser.
-- [ ] Resolve only header/environment values.
-- [ ] Reject unresolved/invalid references safely.
-- [ ] Implement key-based redaction.
-- [ ] Implement exact resolved-value redaction.
-- [ ] Ensure definitions API returns reference text, never values.
-- [ ] Add log-capture tests proving no secret leakage.
+- [x] Implement `${ENV:NAME}` parser.
+- [x] Resolve only header/environment values.
+- [x] Reject unresolved/invalid references safely.
+- [x] Implement key-based redaction.
+- [x] Implement exact resolved-value redaction.
+- [x] Ensure definitions API returns reference text, never values.
+- [x] Add log-capture tests proving no secret leakage.
 
 ## Phase 4 — MCP adapter
 

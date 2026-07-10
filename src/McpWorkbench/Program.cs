@@ -1,6 +1,7 @@
 using McpWorkbench.Options;
 using McpWorkbench.Persistence;
 using McpWorkbench.Serialization;
+using McpWorkbench.Security;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -28,6 +29,8 @@ builder.Services.AddOptions<SecurityOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IAtomicFileWriter, AtomicFileWriter>();
+builder.Services.AddSingleton<IEnvironmentValueProvider, ProcessEnvironmentValueProvider>();
+builder.Services.AddSingleton<SecretReferenceResolver>();
 builder.Services.AddSingleton<IServerDefinitionStore>(services =>
 {
     var options = services.GetRequiredService<IOptions<WorkbenchOptions>>().Value;

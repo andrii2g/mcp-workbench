@@ -33,7 +33,7 @@ internal sealed class McpClientSessionFactory(
             var client = await McpClient.CreateAsync(transport, clientOptions, loggerFactory, cancellationToken);
             transport = null;
             return new McpClientSession(
-                client,
+                new McpSdkClient(client),
                 MapSessionInfo(client, resolvedSettings),
                 options.Value.MaximumResultBytes);
         }
@@ -51,11 +51,11 @@ internal sealed class McpClientSessionFactory(
     private IClientTransport CreateTransport(
         McpServerDefinition definition,
         ResolvedTransportSettings resolvedSettings) => resolvedSettings.Transport switch
-    {
-        McpTransportKind.Stdio when resolvedSettings.Stdio is not null => CreateStdioTransport(definition, resolvedSettings.Stdio),
-        McpTransportKind.Http when resolvedSettings.Http is not null => CreateHttpTransport(definition, resolvedSettings.Http),
-        _ => throw new McpSessionException("server_definition_invalid", "Resolved transport settings do not match the server definition.")
-    };
+        {
+            McpTransportKind.Stdio when resolvedSettings.Stdio is not null => CreateStdioTransport(definition, resolvedSettings.Stdio),
+            McpTransportKind.Http when resolvedSettings.Http is not null => CreateHttpTransport(definition, resolvedSettings.Http),
+            _ => throw new McpSessionException("server_definition_invalid", "Resolved transport settings do not match the server definition.")
+        };
 
     private StdioClientTransport CreateStdioTransport(
         McpServerDefinition definition,

@@ -1,12 +1,11 @@
 using System.Text.Json;
 using McpWorkbench.Domain;
-using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
 namespace McpWorkbench.Mcp;
 
 internal sealed class McpClientSession(
-    McpClient client,
+    IMcpSdkClient client,
     McpSessionInfo sessionInfo,
     int maximumResultBytes) : IMcpClientSession
 {
@@ -24,7 +23,7 @@ internal sealed class McpClientSession(
         ThrowIfDisposed();
         try
         {
-            await client.PingAsync(new PingRequestParams(), cancellationToken);
+            await client.PingAsync(cancellationToken);
         }
         catch (Exception exception)
         {
@@ -41,7 +40,7 @@ internal sealed class McpClientSession(
             string? cursor = null;
             do
             {
-                var page = await client.ListToolsAsync(new ListToolsRequestParams { Cursor = cursor }, cancellationToken);
+                var page = await client.ListToolsAsync(cursor, cancellationToken);
                 tools.AddRange(page.Tools);
                 cursor = page.NextCursor;
             }

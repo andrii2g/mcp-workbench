@@ -55,19 +55,19 @@ tests, and documentation for that item are present.
 
 ## Phase 4 — MCP adapter
 
-- [ ] Define `IMcpClientSession`.
-- [ ] Define app-owned session/tool/result records.
-- [ ] Implement stdio SDK adapter.
-- [ ] Implement HTTP SDK adapter.
-- [ ] Implement initialization metadata mapping.
-- [ ] Implement ping.
-- [ ] Implement tool discovery mapping.
-- [ ] Implement tool invocation mapping.
-- [ ] Implement known and unknown content mapping.
-- [ ] Enforce catalog/result bounds.
-- [ ] Implement idempotent async disposal.
-- [ ] Add adapter unit tests with fakes.
-- [ ] Add real stdio integration tests.
+- [x] Define `IMcpClientSession`.
+- [x] Define app-owned session/tool/result records.
+- [x] Implement stdio SDK adapter.
+- [x] Implement HTTP SDK adapter.
+- [x] Implement initialization metadata mapping.
+- [x] Implement ping.
+- [x] Implement tool discovery mapping.
+- [x] Implement tool invocation mapping.
+- [x] Implement known and unknown content mapping.
+- [x] Enforce catalog/result bounds.
+- [x] Implement idempotent async disposal.
+- [x] Add adapter unit tests with fakes.
+- [x] Add real stdio integration tests.
 
 ## Phase 5 — Runtime manager
 

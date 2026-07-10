@@ -1,7 +1,6 @@
-using System.Text.Json;
 using System.Text;
 using McpWorkbench.Domain;
-using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 
 namespace McpWorkbench.Mcp;
 
@@ -12,7 +11,7 @@ internal static class ToolCatalogMapper
     private const int MaximumDescriptionLength = 8_192;
     private const int MaximumAggregateSchemaBytes = 1_048_576;
 
-    public static IReadOnlyList<ToolCatalogEntry> Map(IList<McpClientTool> tools)
+    public static IReadOnlyList<ToolCatalogEntry> Map(IReadOnlyList<Tool> tools)
     {
         if (tools.Count > MaximumToolCount)
         {
@@ -34,8 +33,8 @@ internal static class ToolCatalogMapper
                 throw new McpSessionException("tool_catalog_too_large", "MCP tool description exceeds the supported size.");
             }
 
-            var inputSchema = tool.JsonSchema.Clone();
-            var outputSchema = tool.ReturnJsonSchema?.Clone();
+            var inputSchema = tool.InputSchema.Clone();
+            var outputSchema = tool.OutputSchema?.Clone();
             schemaBytes = checked(schemaBytes + Encoding.UTF8.GetByteCount(inputSchema.GetRawText()));
             if (outputSchema is not null)
             {
@@ -47,7 +46,7 @@ internal static class ToolCatalogMapper
                 throw new McpSessionException("tool_catalog_too_large", "MCP tool schemas exceed the supported aggregate size.");
             }
 
-            var annotations = tool.ProtocolTool.Annotations;
+            var annotations = tool.Annotations;
             mapped.Add(new ToolCatalogEntry(
                 tool.Name,
                 tool.Title,

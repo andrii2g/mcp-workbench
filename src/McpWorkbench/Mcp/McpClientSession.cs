@@ -37,7 +37,16 @@ internal sealed class McpClientSession(
         ThrowIfDisposed();
         try
         {
-            var tools = await client.ListToolsAsync(options: null, cancellationToken);
+            var tools = new List<Tool>();
+            string? cursor = null;
+            do
+            {
+                var page = await client.ListToolsAsync(new ListToolsRequestParams { Cursor = cursor }, cancellationToken);
+                tools.AddRange(page.Tools);
+                cursor = page.NextCursor;
+            }
+            while (!string.IsNullOrEmpty(cursor));
+
             return ToolCatalogMapper.Map(tools);
         }
         catch (Exception exception)

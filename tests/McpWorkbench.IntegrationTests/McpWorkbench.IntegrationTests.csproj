@@ -13,5 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/McpWorkbench/McpWorkbench.csproj" />
+    <ProjectReference Include="../McpWorkbench.TestServer/McpWorkbench.TestServer.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

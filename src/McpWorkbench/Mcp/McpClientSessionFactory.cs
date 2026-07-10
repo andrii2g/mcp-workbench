@@ -60,20 +60,20 @@ internal sealed class McpClientSessionFactory(
     private StdioClientTransport CreateStdioTransport(
         McpServerDefinition definition,
         ResolvedStdioTransportSettings settings) => new(
-        new StdioClientTransportOptions
-        {
-            Name = definition.Name,
-            Command = settings.Command,
-            Arguments = settings.Arguments.ToList(),
-            WorkingDirectory = settings.WorkingDirectory,
-            InheritEnvironmentVariables = true,
-            EnvironmentVariables = settings.Environment.ToDictionary(
-                pair => pair.Key,
-                pair => (string?)pair.Value,
-                StringComparer.Ordinal),
-            ShutdownTimeout = TimeSpan.FromSeconds(settings.ShutdownTimeoutSeconds)
-        },
-        loggerFactory);
+            new StdioClientTransportOptions
+            {
+                Name = definition.Name,
+                Command = settings.Command,
+                Arguments = settings.Arguments.ToList(),
+                WorkingDirectory = settings.WorkingDirectory,
+                InheritEnvironmentVariables = true,
+                EnvironmentVariables = settings.Environment.ToDictionary(
+                    pair => pair.Key,
+                    pair => (string?)pair.Value,
+                    StringComparer.Ordinal),
+                ShutdownTimeout = TimeSpan.FromSeconds(settings.ShutdownTimeoutSeconds)
+            },
+            loggerFactory);
 
     private HttpClientTransport CreateHttpTransport(
         McpServerDefinition definition,

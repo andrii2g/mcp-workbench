@@ -5,10 +5,16 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL3050;IL2070;IL2072;IL2075</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="McpWorkbench.UnitTests" />
+    <InternalsVisibleTo Include="McpWorkbench.IntegrationTests" />
   </ItemGroup>
 </Project>

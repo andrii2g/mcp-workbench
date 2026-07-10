@@ -1,4 +1,7 @@
 using System.Text.Json.Serialization;
+using McpWorkbench.Contracts;
+using McpWorkbench.Domain;
+using McpWorkbench.Validation;
 
 namespace McpWorkbench.Serialization;
 
@@ -9,4 +12,10 @@ internal sealed record HealthResponse(string Status);
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
 [JsonSerializable(typeof(HealthResponse))]
+[JsonSerializable(typeof(McpServerDefinition))]
+[JsonSerializable(typeof(McpServerDefinition[]))]
+[JsonSerializable(typeof(CreateServerRequest))]
+[JsonSerializable(typeof(UpdateServerRequest))]
+[JsonSerializable(typeof(ServerRuntimeSnapshot))]
+[JsonSerializable(typeof(ValidationError[]))]
 internal sealed partial class AppJsonSerializerContext : JsonSerializerContext;

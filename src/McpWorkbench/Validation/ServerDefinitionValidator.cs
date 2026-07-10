@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using McpWorkbench.Contracts;
 using McpWorkbench.Domain;
 

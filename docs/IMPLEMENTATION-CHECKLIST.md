@@ -5,17 +5,17 @@ tests, and documentation for that item are present.
 
 ## Phase 0 — Bootstrap
 
-- [ ] Create `McpWorkbench.slnx`.
-- [ ] Create production, unit, integration, and test-server projects.
-- [ ] Set project references according to repository structure.
-- [ ] Add central package management.
-- [ ] Verify stable `ModelContextProtocol.Core` restore.
-- [ ] Enable nullable, analyzers, warnings as errors, deterministic build.
-- [ ] Add Native AOT properties to production project.
-- [ ] Add source-generated empty JSON context and prove a native publish.
-- [ ] Add basic `/health/live` and `/health/ready`.
-- [ ] Add scripts and CI skeleton.
-- [ ] Record exact SDK/package versions.
+- [x] Create `McpWorkbench.slnx`.
+- [x] Create production, unit, integration, and test-server projects.
+- [x] Set project references according to repository structure.
+- [x] Add central package management.
+- [x] Verify stable `ModelContextProtocol.Core` restore.
+- [x] Enable nullable, analyzers, warnings as errors, deterministic build.
+- [x] Add Native AOT properties to production project.
+- [x] Add source-generated empty JSON context and prove a native publish.
+- [x] Add basic `/health/live` and `/health/ready`.
+- [x] Add scripts and CI skeleton.
+- [x] Record exact SDK/package versions.
 
 ## Phase 1 — Domain and validation
 

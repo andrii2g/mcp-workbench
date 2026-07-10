@@ -236,3 +236,11 @@ A phase is not release complete until:
 - no reflection serialization fallback occurs;
 - no unresolved trim/AOT warnings remain;
 - startup and binary-size measurements are recorded in release notes.
+
+## Development host note
+
+Native AOT does not support cross-OS compilation. On Windows, the Phase 0
+`linux-x64` publish reaches the native compiler and fails with
+`Cross-OS native compilation is not supported`. Linux publishing is therefore verified
+by the Linux CI job. The corresponding `win-x64` publish and native health smoke test
+must pass locally before later phases proceed.

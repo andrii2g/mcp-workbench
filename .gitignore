@@ -1,0 +1,50 @@
+# .NET
+bin/
+obj/
+artifacts/
+TestResults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Coverage
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Publish output
+publish/
+out/
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime data
+data/*
+!data/.gitkeep
+servers.json
+servers.json.tmp
+
+# Secrets/local configuration
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+
+# Logs and diagnostics
+*.log
+logs/
+crashdumps/
+
+# Generated package lock backups
+*.bak

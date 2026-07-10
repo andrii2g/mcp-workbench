@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/McpWorkbench/McpWorkbench.csproj" />
+  <Project Path="tests/McpWorkbench.UnitTests/McpWorkbench.UnitTests.csproj" />
+  <Project Path="tests/McpWorkbench.IntegrationTests/McpWorkbench.IntegrationTests.csproj" />
+  <Project Path="tests/McpWorkbench.TestServer/McpWorkbench.TestServer.csproj" />
+</Solution>

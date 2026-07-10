@@ -1,0 +1,111 @@
+@baseUrl = http://127.0.0.1:5070
+@apiKey = replace-only-when-enabled
+@serverId = 00000000-0000-0000-0000-000000000000
+@toolName = echo
+
+### Liveness
+GET {{baseUrl}}/health/live
+
+### Readiness
+GET {{baseUrl}}/health/ready
+
+### List servers
+GET {{baseUrl}}/api/v1/servers
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Create stdio server
+POST {{baseUrl}}/api/v1/servers
+Content-Type: application/json
+X-Mcp-Workbench-Key: {{apiKey}}
+
+{
+  "name": "Local test server",
+  "description": "Deterministic MCP test server",
+  "enabled": true,
+  "transport": "stdio",
+  "stdio": {
+    "command": "dotnet",
+    "arguments": [
+      "./tests/McpWorkbench.TestServer/bin/Debug/net10.0/McpWorkbench.TestServer.dll"
+    ],
+    "workingDirectory": null,
+    "environment": {},
+    "shutdownTimeoutSeconds": 5
+  },
+  "http": null,
+  "operationTimeoutSeconds": 30
+}
+
+### Create HTTP server
+POST {{baseUrl}}/api/v1/servers
+Content-Type: application/json
+X-Mcp-Workbench-Key: {{apiKey}}
+
+{
+  "name": "Remote MCP example",
+  "description": null,
+  "enabled": true,
+  "transport": "http",
+  "stdio": null,
+  "http": {
+    "endpoint": "https://mcp.example.test/mcp",
+    "mode": "auto",
+    "headers": {
+      "Authorization": "Bearer ${ENV:REMOTE_MCP_TOKEN}"
+    }
+  },
+  "operationTimeoutSeconds": 30
+}
+
+### Read server
+GET {{baseUrl}}/api/v1/servers/{{serverId}}
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Connect
+POST {{baseUrl}}/api/v1/servers/{{serverId}}/connect
+Content-Type: application/json
+X-Mcp-Workbench-Key: {{apiKey}}
+
+{
+  "forceReconnect": false
+}
+
+### Runtime state
+GET {{baseUrl}}/api/v1/servers/{{serverId}}/runtime
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Ping
+POST {{baseUrl}}/api/v1/servers/{{serverId}}/ping
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### List tools
+GET {{baseUrl}}/api/v1/servers/{{serverId}}/tools
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Refresh tools
+POST {{baseUrl}}/api/v1/servers/{{serverId}}/tools/refresh
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Read tool
+GET {{baseUrl}}/api/v1/servers/{{serverId}}/tools/{{toolName}}
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Invoke tool
+POST {{baseUrl}}/api/v1/servers/{{serverId}}/tools/{{toolName}}/invoke
+Content-Type: application/json
+X-Mcp-Workbench-Key: {{apiKey}}
+
+{
+  "arguments": {
+    "text": "Hello from MCP Workbench"
+  },
+  "timeoutSeconds": 10
+}
+
+### Disconnect
+POST {{baseUrl}}/api/v1/servers/{{serverId}}/disconnect
+X-Mcp-Workbench-Key: {{apiKey}}
+
+### Delete
+DELETE {{baseUrl}}/api/v1/servers/{{serverId}}
+X-Mcp-Workbench-Key: {{apiKey}}

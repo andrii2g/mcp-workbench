@@ -12,7 +12,8 @@ internal sealed record StdioTransportRequest(
 internal sealed record HttpTransportRequest(
     string? Endpoint,
     McpHttpMode Mode,
-    IReadOnlyDictionary<string, string>? Headers);
+    IReadOnlyDictionary<string, string>? Headers,
+    HttpAuthorizationSettings? Authorization = null);
 
 internal sealed record CreateServerRequest(
     string? Name,

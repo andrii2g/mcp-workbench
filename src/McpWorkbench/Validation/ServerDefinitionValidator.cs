@@ -193,11 +193,37 @@ internal static class ServerDefinitionValidator
 
         foreach (var pair in headers)
         {
-            if (!IsHeaderName(pair.Key) || RuntimeControlledHeaders.Contains(pair.Key) || pair.Value is null ||
+            if (!IsHeaderName(pair.Key) || RuntimeControlledHeaders.Contains(pair.Key) ||
+                (settings.Authorization is not null && pair.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase)) || pair.Value is null ||
                 pair.Value.Length > MaximumHeaderValueLength || ContainsControlCharacter(pair.Value, allowTab: true))
             {
                 Add(errors, $"http.headers.{pair.Key}", "invalid", "Header name or value is invalid or controlled by the HTTP runtime.");
             }
+        }
+
+        ValidateAuthorization(settings.Authorization, errors);
+    }
+
+    private static void ValidateAuthorization(HttpAuthorizationSettings? settings, List<ValidationError> errors)
+    {
+        if (settings is null) return;
+        if (string.IsNullOrEmpty(settings.Credential) || settings.Credential.Length > MaximumHeaderValueLength ||
+            ContainsControlCharacter(settings.Credential, allowTab: false))
+        {
+            Add(errors, "http.authorization.credential", "invalid", "Authorization credential is required and must be a valid header value.");
+        }
+
+        if (settings.Kind == HttpAuthorizationKind.Basic &&
+            (string.IsNullOrEmpty(settings.Username) || settings.Username.Length > 1024 ||
+             settings.Username.Contains(':') || ContainsControlCharacter(settings.Username)))
+        {
+            Add(errors, "http.authorization.username", "invalid", "Basic username is required and must not contain a colon or control characters.");
+        }
+
+        if (settings.Kind == HttpAuthorizationKind.CustomScheme &&
+            (string.IsNullOrEmpty(settings.Scheme) || !IsHeaderName(settings.Scheme)))
+        {
+            Add(errors, "http.authorization.scheme", "invalid", "Custom authorization scheme must be a valid HTTP token.");
         }
     }
 
@@ -212,7 +238,12 @@ internal static class ServerDefinitionValidator
     private static HttpTransportRequest? Normalize(HttpTransportRequest? settings) => settings is null ? null : settings with
     {
         Endpoint = settings.Endpoint!.Trim(),
-        Headers = settings.Headers ?? new Dictionary<string, string>()
+        Headers = settings.Headers ?? new Dictionary<string, string>(),
+        Authorization = settings.Authorization is null ? null : settings.Authorization with
+        {
+            Username = settings.Authorization.Username?.Trim(),
+            Scheme = settings.Authorization.Scheme?.Trim()
+        }
     };
 
     private static bool IsHeaderName(string value) =>

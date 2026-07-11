@@ -52,6 +52,29 @@ internal sealed class McpHttpModeJsonConverter : JsonConverter<McpHttpMode>
         });
 }
 
+internal sealed class HttpAuthorizationKindJsonConverter : JsonConverter<HttpAuthorizationKind>
+{
+    public override HttpAuthorizationKind Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.GetString() switch
+        {
+            "bearer" => HttpAuthorizationKind.Bearer,
+            "basic" => HttpAuthorizationKind.Basic,
+            "customScheme" => HttpAuthorizationKind.CustomScheme,
+            "customRaw" => HttpAuthorizationKind.CustomRaw,
+            _ => throw new JsonException("HTTP authorization kind is unsupported.")
+        };
+
+    public override void Write(Utf8JsonWriter writer, HttpAuthorizationKind value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            HttpAuthorizationKind.Bearer => "bearer",
+            HttpAuthorizationKind.Basic => "basic",
+            HttpAuthorizationKind.CustomScheme => "customScheme",
+            HttpAuthorizationKind.CustomRaw => "customRaw",
+            _ => throw new JsonException("Unsupported HTTP authorization kind.")
+        });
+}
+
 internal sealed class McpConnectionStateJsonConverter : JsonConverter<McpConnectionState>
 {
     public McpConnectionStateJsonConverter()

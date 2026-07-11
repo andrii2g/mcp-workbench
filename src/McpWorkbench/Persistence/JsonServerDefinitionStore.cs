@@ -268,7 +268,8 @@ internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDispo
             server.Http is null ? null : new HttpTransportRequest(
                 server.Http.Endpoint,
                 server.Http.Mode,
-                server.Http.Headers),
+                server.Http.Headers,
+                server.Http.Authorization),
             server.OperationTimeoutSeconds);
         if (!ServerDefinitionValidator.Validate(request, _maximumOperationTimeoutSeconds).IsValid)
         {

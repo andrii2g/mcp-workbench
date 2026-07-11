@@ -114,13 +114,33 @@ internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider 
 
     private ResolvedHttpTransportSettings ResolveHttp(
         HttpTransportSettings settings,
-        ISet<string> sensitiveValues)
+        HashSet<string> sensitiveValues)
     {
         var headers = settings.Headers.ToDictionary(
             pair => pair.Key,
             pair => ResolveValue(pair.Value, sensitiveValues),
             StringComparer.OrdinalIgnoreCase);
+        if (settings.Authorization is not null)
+        {
+            var authorization = ResolveAuthorization(settings.Authorization, sensitiveValues);
+            headers["Authorization"] = authorization;
+            sensitiveValues.Add(authorization);
+        }
         return new ResolvedHttpTransportSettings(new Uri(settings.Endpoint, UriKind.Absolute), settings.Mode, headers);
+    }
+
+    private string ResolveAuthorization(HttpAuthorizationSettings settings, HashSet<string> sensitiveValues)
+    {
+        var credential = ResolveValue(settings.Credential!, sensitiveValues);
+        return settings.Kind switch
+        {
+            HttpAuthorizationKind.Bearer => $"Bearer {credential}",
+            HttpAuthorizationKind.Basic => "Basic " + Convert.ToBase64String(
+                Encoding.UTF8.GetBytes($"{settings.Username}:{credential}")),
+            HttpAuthorizationKind.CustomScheme => $"{settings.Scheme} {credential}",
+            HttpAuthorizationKind.CustomRaw => credential,
+            _ => throw new InvalidOperationException("Validated HTTP authorization kind is unsupported.")
+        };
     }
 
     private static bool HasUnmatchedReferenceSyntax(string value)

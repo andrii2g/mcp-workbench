@@ -388,7 +388,8 @@ internal static class ApiEndpoints
         request.Http is null ? null : new HttpTransportSettings(
             request.Http.Endpoint!,
             request.Http.Mode,
-            request.Http.Headers?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? []),
+            request.Http.Headers?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? [],
+            request.Http.Authorization),
         request.OperationTimeoutSeconds,
         createdAt,
         updatedAt);
@@ -410,26 +411,60 @@ internal static class ApiEndpoints
         createdAt,
         updatedAt);
 
-    private static ServerDefinitionResponse MapServer(McpServerDefinition definition, ServerRuntimeSnapshot? runtime) => new(
-        definition.Id,
-        definition.Name,
-        definition.Description,
-        definition.Transport,
-        definition.Enabled,
-        definition.Stdio is null ? null : new StdioTransportRequest(
-            definition.Stdio.Command,
-            definition.Stdio.Arguments,
-            definition.Stdio.WorkingDirectory,
-            SensitiveDataRedactor.RedactDictionary(definition.Stdio.Environment),
-            definition.Stdio.ShutdownTimeoutSeconds),
-        definition.Http is null ? null : new HttpTransportRequest(
-            definition.Http.Endpoint,
-            definition.Http.Mode,
-            SensitiveDataRedactor.RedactDictionary(definition.Http.Headers)),
-        definition.OperationTimeoutSeconds,
-        definition.CreatedAtUtc,
-        definition.UpdatedAtUtc,
-        runtime);
+    private static ServerDefinitionResponse MapServer(McpServerDefinition definition, ServerRuntimeSnapshot? runtime)
+    {
+        HttpTransportRequest? http = null;
+        if (definition.Http is not null)
+        {
+            var headers = definition.Http.Headers
+                .Where(pair => !pair.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(pair => pair.Key, pair => SensitiveDataRedactor.RedactValue(pair.Key, pair.Value), StringComparer.OrdinalIgnoreCase);
+            http = new HttpTransportRequest(
+                definition.Http.Endpoint,
+                definition.Http.Mode,
+                headers,
+                MapAuthorization(definition.Http));
+        }
+
+        return new ServerDefinitionResponse(
+            definition.Id,
+            definition.Name,
+            definition.Description,
+            definition.Transport,
+            definition.Enabled,
+            definition.Stdio is null ? null : new StdioTransportRequest(
+                definition.Stdio.Command,
+                definition.Stdio.Arguments,
+                definition.Stdio.WorkingDirectory,
+                SensitiveDataRedactor.RedactDictionary(definition.Stdio.Environment),
+                definition.Stdio.ShutdownTimeoutSeconds),
+            http,
+            definition.OperationTimeoutSeconds,
+            definition.CreatedAtUtc,
+            definition.UpdatedAtUtc,
+            runtime);
+    }
+
+    private static HttpAuthorizationSettings? MapAuthorization(HttpTransportSettings settings)
+    {
+        if (settings.Authorization is not null)
+        {
+            return settings.Authorization with
+            {
+                Credential = SensitiveDataRedactor.RedactValue("Authorization", settings.Authorization.Credential!)
+            };
+        }
+
+        if (!settings.Headers.TryGetValue("Authorization", out var legacy)) return null;
+        var separator = legacy.IndexOf(' ');
+        if (separator <= 0)
+            return new HttpAuthorizationSettings(HttpAuthorizationKind.CustomRaw, null, null, SensitiveDataRedactor.RedactValue("Authorization", legacy));
+        var scheme = legacy[..separator];
+        var credential = SensitiveDataRedactor.RedactValue("Authorization", legacy[(separator + 1)..]);
+        return scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase)
+            ? new HttpAuthorizationSettings(HttpAuthorizationKind.Bearer, null, null, credential)
+            : new HttpAuthorizationSettings(HttpAuthorizationKind.CustomScheme, null, scheme, credential);
+    }
 
     private static async ValueTask<string[]> StoreSecretsAsync(
         IReadOnlyDictionary<string, string>? values,
@@ -462,7 +497,8 @@ internal static class ApiEndpoints
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
         IEnumerable<string> values = definition.Transport == McpTransportKind.Http
-            ? definition.Http?.Headers.Values ?? []
+            ? (definition.Http?.Headers.Values ?? []).Concat(
+                definition.Http?.Authorization?.Credential is { } credential ? [credential] : [])
             : definition.Stdio?.Environment.Values ?? [];
         foreach (var value in values)
         {

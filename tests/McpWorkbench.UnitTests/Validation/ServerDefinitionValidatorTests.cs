@@ -91,6 +91,44 @@ public sealed class ServerDefinitionValidatorTests
     }
 
     [Fact]
+    public void Validate_WhenDedicatedAuthorizationAndHeaderAreBothConfigured_ReturnsHeaderError()
+    {
+        var http = ValidHttp().Http! with
+        {
+            Headers = new Dictionary<string, string> { ["Authorization"] = "legacy" },
+            Authorization = new HttpAuthorizationSettings(HttpAuthorizationKind.Bearer, null, null, "token")
+        };
+
+        var result = ServerDefinitionValidator.Validate(ValidHttp() with { Http = http });
+
+        Assert.Contains(result.Errors, error => error.Field == "http.headers.Authorization");
+    }
+
+    [Theory]
+    [InlineData((int)HttpAuthorizationKind.Bearer, null, null, "token", true)]
+    [InlineData((int)HttpAuthorizationKind.Basic, "alice", null, "password", true)]
+    [InlineData((int)HttpAuthorizationKind.Basic, "bad:user", null, "password", false)]
+    [InlineData((int)HttpAuthorizationKind.CustomScheme, null, "Token", "credential", true)]
+    [InlineData((int)HttpAuthorizationKind.CustomScheme, null, "Bad Scheme", "credential", false)]
+    [InlineData((int)HttpAuthorizationKind.CustomRaw, null, null, "Token credential", true)]
+    public void Validate_WhenAuthorizationIsConfigured_ValidatesFields(
+        int kindValue,
+        string? username,
+        string? scheme,
+        string credential,
+        bool expectedValid)
+    {
+        var http = ValidHttp().Http! with
+        {
+            Authorization = new HttpAuthorizationSettings((HttpAuthorizationKind)kindValue, username, scheme, credential)
+        };
+
+        var result = ServerDefinitionValidator.Validate(ValidHttp() with { Http = http });
+
+        Assert.Equal(expectedValid, result.IsValid);
+    }
+
+    [Fact]
     public void Validate_WhenEnvironmentNameIsInvalid_ReturnsEnvironmentError()
     {
         var environment = new Dictionary<string, string> { ["BAD=NAME"] = "value" };

@@ -189,6 +189,7 @@ match one entry. Do not use substring matching.
 | `endpoint` | Absolute `https` URI by default |
 | `mode` | `auto`, `streamableHttp`, or `legacySse` |
 | `headers` | Max 64 entries |
+| `authorization` | Optional `bearer`, `basic`, `customScheme`, or `customRaw` authorization configuration |
 | header name | Valid HTTP header token |
 | header value | Max 8192 characters before resolution |
 

@@ -197,8 +197,10 @@ HTTP request:
   "http": {
     "endpoint": "https://mcp.example.test/mcp",
     "mode": "auto",
-    "headers": {
-      "Authorization": "Bearer ${ENV:REMOTE_MCP_TOKEN}"
+    "headers": {},
+    "authorization": {
+      "kind": "bearer",
+      "credential": "${ENV:REMOTE_MCP_TOKEN}"
     }
   },
   "operationTimeoutSeconds": 30

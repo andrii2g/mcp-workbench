@@ -28,7 +28,13 @@ public sealed class ApiEndpointTests
             name = "Secret API test",
             enabled = true,
             transport = "http",
-            http = new { endpoint = "https://example.test/mcp", mode = "auto", headers = new Dictionary<string, string> { ["Authorization"] = "${SECRET:" + id + "}" } },
+            http = new
+            {
+                endpoint = "https://example.test/mcp",
+                mode = "auto",
+                headers = new Dictionary<string, string> { ["X-Tenant"] = "tenant" },
+                authorization = new { kind = "bearer", credential = "${SECRET:" + id + "}" }
+            },
             operationTimeoutSeconds = 30,
             secrets = new Dictionary<string, string> { [id] = secret }
         });
@@ -36,12 +42,15 @@ public sealed class ApiEndpointTests
         using var response = await client.PostAsync("/api/v1/servers", Content(json), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var responseJson = await Json(response);
+        Assert.Equal("bearer", responseJson.RootElement.GetProperty("data").GetProperty("http").GetProperty("authorization").GetProperty("kind").GetString());
+        Assert.Equal($"${{SECRET:{id}}}", responseJson.RootElement.GetProperty("data").GetProperty("http").GetProperty("authorization").GetProperty("credential").GetString());
         Assert.DoesNotContain(secret, await File.ReadAllTextAsync(application.RegistryPath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
         Assert.Contains($"${{SECRET:{id}}}", await File.ReadAllTextAsync(application.RegistryPath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
         Assert.DoesNotContain(secret, Convert.ToBase64String(await File.ReadAllBytesAsync(application.VaultPath, TestContext.Current.CancellationToken)), StringComparison.Ordinal);
         var secretStore = application.Services.GetRequiredService<ISecretStore>();
         Assert.True(secretStore.TryGet(id, out _));
-        var serverId = (await Json(response)).RootElement.GetProperty("data").GetProperty("id").GetGuid();
+        var serverId = responseJson.RootElement.GetProperty("data").GetProperty("id").GetGuid();
 
         using var deleted = await client.DeleteAsync($"/api/v1/servers/{serverId}", TestContext.Current.CancellationToken);
 

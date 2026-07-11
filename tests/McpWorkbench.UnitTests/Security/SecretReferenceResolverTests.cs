@@ -105,6 +105,33 @@ public sealed class SecretReferenceResolverTests
         Assert.Contains("stored-sentinel", sensitive);
     }
 
+    [Theory]
+    [InlineData((int)HttpAuthorizationKind.Bearer, null, null, "Bearer sentinel-secret")]
+    [InlineData((int)HttpAuthorizationKind.Basic, "alice", null, "Basic YWxpY2U6c2VudGluZWwtc2VjcmV0")]
+    [InlineData((int)HttpAuthorizationKind.CustomScheme, null, "Token", "Token sentinel-secret")]
+    [InlineData((int)HttpAuthorizationKind.CustomRaw, null, null, "sentinel-secret")]
+    public void Resolve_WhenHttpAuthorizationIsConfigured_GeneratesHeader(
+        int kindValue,
+        string? username,
+        string? scheme,
+        string expected)
+    {
+        var definition = HttpDefinition() with
+        {
+            Http = HttpDefinition().Http! with
+            {
+                Headers = new Dictionary<string, string> { ["X-Tenant"] = "tenant" },
+                Authorization = new HttpAuthorizationSettings((HttpAuthorizationKind)kindValue, username, scheme, "${ENV:TOKEN}")
+            }
+        };
+
+        var result = Resolver(("TOKEN", "sentinel-secret")).Resolve(definition);
+
+        Assert.Equal(expected, result.Http?.Headers["Authorization"]);
+        Assert.Equal("tenant", result.Http?.Headers["X-Tenant"]);
+        Assert.Contains(expected, result.SensitiveValues);
+    }
+
     private static SecretReferenceResolver Resolver(params (string Name, string Value)[] values) =>
         new(new DictionaryEnvironmentValueProvider(values));
 

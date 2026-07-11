@@ -29,6 +29,7 @@ function rowsEditor(title, values, keyLabel, valueLabel, placeholders = {}) {
   return {
     node: root,
     missingSecrets: () => [...list.querySelectorAll('input[data-redacted="true"]')].some(input => !input.value.trim()),
+    hasAuthorization: () => [...list.querySelectorAll(".row")].some(row => row.querySelector('input:not([type="checkbox"])').value.trim().toLowerCase() === "authorization"),
     extract: () => {
       const entries = {};
       const secrets = {};
@@ -48,6 +49,65 @@ function rowsEditor(title, values, keyLabel, valueLabel, placeholders = {}) {
         } else entries[key] = value;
       }
       return { entries, secrets };
+    }
+  };
+}
+
+function authorizationEditor(value) {
+  const root = el("div", { class: "authorization-editor" });
+  const kind = el("select", {},
+    el("option", { value: "none", text: "None" }),
+    el("option", { value: "bearer", text: "Bearer token" }),
+    el("option", { value: "basic", text: "Basic authentication" }),
+    el("option", { value: "customScheme", text: "Custom scheme" }),
+    el("option", { value: "customRaw", text: "Custom raw value" }));
+  kind.value = value?.kind || "none";
+  const username = el("input", { value: value?.username || "", autocomplete: "username" });
+  const scheme = el("input", { value: value?.scheme || "", placeholder: "Token" });
+  const managedReference = value?.credential?.startsWith("${SECRET:") ? value.credential : null;
+  const redacted = value?.credential === "[REDACTED]";
+  const credential = el("input", {
+    type: "password",
+    value: managedReference || redacted ? "" : value?.credential || "",
+    placeholder: managedReference ? "Stored securely" : redacted ? "Enter a replacement credential" : "",
+    autocomplete: "new-password",
+    "data-secret-reference": managedReference,
+    "data-redacted": redacted ? "true" : null
+  });
+  const usernameField = field("Username", username);
+  const schemeField = field("Scheme", scheme);
+  const credentialField = field("Credential", credential);
+  const fields = el("div", { class: "authorization-fields form-grid" }, usernameField, schemeField, credentialField);
+  const update = () => {
+    usernameField.hidden = kind.value !== "basic";
+    schemeField.hidden = kind.value !== "customScheme";
+    credentialField.hidden = kind.value === "none";
+  };
+  kind.addEventListener("change", update);
+  update();
+  root.append(field("Authorization", kind), fields);
+  return {
+    node: root,
+    missingCredential: () => kind.value !== "none" && !credential.value.trim() && !credential.dataset.secretReference,
+    extract: () => {
+      if (kind.value === "none") return { authorization: null, secrets: {} };
+      let credentialValue = credential.value.trim();
+      const secrets = {};
+      if (!credentialValue && credential.dataset.secretReference) credentialValue = credential.dataset.secretReference;
+      else if (credentialValue && !credentialValue.includes("${ENV:") && !credentialValue.includes("${SECRET:")) {
+        const id = crypto.randomUUID();
+        secrets[id] = credentialValue;
+        credentialValue = "${SECRET:" + id + "}";
+      }
+      return {
+        authorization: {
+          kind: kind.value,
+          username: kind.value === "basic" ? username.value : null,
+          scheme: kind.value === "customScheme" ? scheme.value : null,
+          credential: credentialValue
+        },
+        secrets
+      };
     }
   };
 }
@@ -72,9 +132,10 @@ export function serverEditPage(server, onSave) {
   const endpoint = el("input", { type: "url", value: server?.http?.endpoint || "" });
   const mode = el("select", {}, ...["auto", "streamableHttp", "legacySse"].map(value => el("option", { value, text: value })));
   mode.value = server?.http?.mode || "auto";
-  const headers = rowsEditor("Headers", Object.entries(server?.http?.headers || {}), "Header name", "Header value", { key: "Authorization", value: "Bearer ${ENV:MCP_ACCESS_TOKEN}" });
+  const authorization = authorizationEditor(server?.http?.authorization);
+  const headers = rowsEditor("Additional headers", Object.entries(server?.http?.headers || {}), "Header name", "Header value", { key: "X-API-Key", value: "Header value" });
   const stdio = el("fieldset", {}, el("legend", { text: "Stdio settings" }), el("div", { class: "form-grid" }, field("Command", command), field("Working directory", workdir)), field("Arguments", args, "One argument per line, in order."), env.node, field("Shutdown timeout (seconds)", shutdown));
-  const http = el("fieldset", {}, el("legend", { text: "HTTP settings" }), el("div", { class: "form-grid" }, field("Endpoint", endpoint), field("Mode", mode)), headers.node);
+  const http = el("fieldset", {}, el("legend", { text: "HTTP settings" }), el("div", { class: "form-grid" }, field("Endpoint", endpoint), field("Mode", mode)), authorization.node, headers.node);
   const updateTransport = () => { stdio.hidden = transport.value !== "stdio"; http.hidden = transport.value !== "http"; };
   transport.addEventListener("change", updateTransport);
   updateTransport();
@@ -98,13 +159,24 @@ export function serverEditPage(server, onSave) {
       error.textContent = "Re-enter every redacted secret value before saving.";
       return;
     }
+    if (transport.value === "http" && authorization.missingCredential()) {
+      error.hidden = false;
+      error.textContent = "Enter an authorization credential.";
+      return;
+    }
+    if (transport.value === "http" && headers.hasAuthorization()) {
+      error.hidden = false;
+      error.textContent = "Configure Authorization in the dedicated selector, not Additional headers.";
+      return;
+    }
     const selectedRows = transport.value === "stdio" ? env.extract() : headers.extract();
+    const selectedAuthorization = transport.value === "http" ? authorization.extract() : { authorization: null, secrets: {} };
     const body = {
       name: name.value, description: description.value || null, enabled: enabled.checked, transport: transport.value,
       stdio: transport.value === "stdio" ? { command: command.value, arguments: args.value.split(/\r?\n/).filter(Boolean), workingDirectory: workdir.value || null, environment: selectedRows.entries, shutdownTimeoutSeconds: Number(shutdown.value) } : null,
-      http: transport.value === "http" ? { endpoint: endpoint.value, mode: mode.value, headers: selectedRows.entries } : null,
+      http: transport.value === "http" ? { endpoint: endpoint.value, mode: mode.value, headers: selectedRows.entries, authorization: selectedAuthorization.authorization } : null,
       operationTimeoutSeconds: Number(timeout.value),
-      secrets: selectedRows.secrets
+      secrets: { ...selectedRows.secrets, ...selectedAuthorization.secrets }
     };
     try {
       [...form.querySelectorAll("button")].forEach(button => button.disabled = true);

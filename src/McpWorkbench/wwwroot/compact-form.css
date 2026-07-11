@@ -85,6 +85,16 @@
   margin-top: 8px;
 }
 
+.authorization-editor {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+.authorization-fields .field[hidden] {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .form-grid,
   .form-grid-controls {

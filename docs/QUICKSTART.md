@@ -62,7 +62,8 @@ Select **Add server**, choose **HTTP endpoint**, and enter the MCP endpoint. Use
 environment reference for credentials:
 
 ```text
-Authorization = Bearer ${ENV:REMOTE_MCP_TOKEN}
+Authentication = Bearer token
+Credential = ${ENV:REMOTE_MCP_TOKEN}
 ```
 
 Alternatively, enable **Secret** beside a header or environment value and paste the

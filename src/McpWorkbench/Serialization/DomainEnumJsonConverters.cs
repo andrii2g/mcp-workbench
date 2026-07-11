@@ -80,3 +80,28 @@ internal sealed class McpConnectionStateJsonConverter : JsonConverter<McpConnect
             _ => throw new JsonException("Unsupported connection state value.")
         });
 }
+
+internal sealed class McpContentKindJsonConverter : JsonConverter<McpContentKind>
+{
+    public override McpContentKind Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.GetString() switch
+        {
+            "text" => McpContentKind.Text,
+            "image" => McpContentKind.Image,
+            "embeddedResource" => McpContentKind.EmbeddedResource,
+            "resourceLink" => McpContentKind.ResourceLink,
+            "unknown" => McpContentKind.Unknown,
+            _ => throw new JsonException("MCP content kind is unsupported.")
+        };
+
+    public override void Write(Utf8JsonWriter writer, McpContentKind value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value switch
+        {
+            McpContentKind.Text => "text",
+            McpContentKind.Image => "image",
+            McpContentKind.EmbeddedResource => "embeddedResource",
+            McpContentKind.ResourceLink => "resourceLink",
+            McpContentKind.Unknown => "unknown",
+            _ => throw new JsonException("Unsupported MCP content kind value.")
+        });
+}

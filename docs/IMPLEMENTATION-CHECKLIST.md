@@ -109,19 +109,19 @@ tests, and documentation for that item are present.
 
 ## Phase 8 — Static UI
 
-- [ ] Build accessible application shell.
-- [ ] Build server list.
-- [ ] Build add/edit form.
-- [ ] Build server details and runtime controls.
-- [ ] Build tool list and filtering.
-- [ ] Build schema viewer.
-- [ ] Build raw JSON editor.
-- [ ] Build limited generated form.
-- [ ] Build result renderer.
-- [ ] Render all untrusted values with `textContent`.
-- [ ] Add loading/empty/error states.
-- [ ] Add responsive CSS.
-- [ ] Complete manual accessibility/security checklist.
+- [x] Build accessible application shell.
+- [x] Build server list.
+- [x] Build add/edit form.
+- [x] Build server details and runtime controls.
+- [x] Build tool list and filtering.
+- [x] Build schema viewer.
+- [x] Build raw JSON editor.
+- [x] Build limited generated form.
+- [x] Build result renderer.
+- [x] Render all untrusted values with `textContent`.
+- [x] Add loading/empty/error states.
+- [x] Add responsive CSS.
+- [ ] Complete manual accessibility/security checklist (browser automation blocked localhost).
 
 ## Phase 9 — Hardening
 

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>MCP Workbench</title>
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="#/servers" aria-label="MCP Workbench dashboard">
+      <img src="/assets/mark.svg" alt="" width="28" height="28">
+      <span>MCP Workbench</span>
+    </a>
+    <div class="health" id="health" aria-live="polite"><span class="health-dot"></span>Checking registry</div>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Servers">
+      <div class="sidebar-head"><h2>Servers</h2><a class="icon-button" href="#/servers/new" title="Add server" aria-label="Add server">+</a></div>
+      <label class="search"><span class="sr-only">Filter servers</span><input id="server-search" type="search" placeholder="Filter servers"></label>
+      <nav id="server-nav" aria-label="Registered servers"></nav>
+    </aside>
+    <main id="main" tabindex="-1"><div class="loading">Loading workspace...</div></main>
+  </div>
+  <div id="toast-region" class="toasts" aria-live="polite" aria-atomic="true"></div>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog"><h2 id="confirm-title">Confirm action</h2><p id="confirm-message"></p>
+      <div class="dialog-actions"><button value="cancel">Cancel</button><button class="danger" value="confirm">Confirm</button></div>
+    </form>
+  </dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

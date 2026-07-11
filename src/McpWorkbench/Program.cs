@@ -50,6 +50,8 @@ builder.Services.AddSingleton<IServerDefinitionStore>(services =>
 var app = builder.Build();
 
 app.UseMiddleware<ApiMiddleware>();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 await app.Services.GetRequiredService<IServerDefinitionStore>()
     .InitializeAsync(app.Lifetime.ApplicationStopping);

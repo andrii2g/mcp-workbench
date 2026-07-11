@@ -118,6 +118,24 @@ public sealed class McpConnectionManagerTests
     }
 
     [Fact]
+    public async Task DeleteDefinitionAsync_WhenPingIsActive_CancelsBeforeDisposal()
+    {
+        var fixture = Fixture();
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        var session = fixture.Factory.Sessions[0];
+        session.BlockPings = true;
+        var ping = fixture.Manager.PingAsync(fixture.Definition.Id, TestContext.Current.CancellationToken).AsTask();
+        await session.PingStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var deleted = await fixture.Manager.DeleteDefinitionAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () => await ping);
+        Assert.True(deleted);
+        Assert.Equal("operation_cancelled", exception.Code);
+        Assert.Equal(1, session.DisposeCount);
+    }
+
+    [Fact]
     public async Task ShutdownService_WhenSessionsAreConnected_DisposesEverySession()
     {
         var first = Definition("First");
@@ -284,7 +302,6 @@ public sealed class McpConnectionManagerTests
 
         public async ValueTask PingAsync(CancellationToken cancellationToken)
         {
-            PingStarted.TrySetResult();
             if (PingException is not null)
             {
                 throw PingException;
@@ -292,6 +309,7 @@ public sealed class McpConnectionManagerTests
 
             if (BlockPings)
             {
+                PingStarted.TrySetResult();
                 try
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);

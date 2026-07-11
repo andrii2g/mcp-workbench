@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using McpWorkbench.Domain;
 using McpWorkbench.Options;
 using McpWorkbench.Persistence;
@@ -142,11 +141,23 @@ internal sealed class McpConnectionManager(
         var runtime = await GetConnectedRuntimeAsync(serverId, cancellationToken);
         IMcpClientSession session;
         CancellationToken lifetimeToken;
+        var invocationAcquired = false;
         await runtime.LifecycleGate.WaitAsync(cancellationToken);
         try
         {
+            await runtime.InvocationGate.WaitAsync(cancellationToken);
+            invocationAcquired = true;
             session = runtime.Session ?? throw new McpSessionException("server_not_connected", "The MCP server is not connected.");
             lifetimeToken = runtime.LifetimeCancellation.Token;
+        }
+        catch
+        {
+            if (invocationAcquired)
+            {
+                runtime.InvocationGate.Release();
+            }
+
+            throw;
         }
         finally
         {
@@ -162,6 +173,10 @@ internal sealed class McpConnectionManager(
         catch (McpSessionException exception) when (exception.Code == "operation_cancelled" && timeout.IsCancellationRequested)
         {
             throw new McpSessionException("ping_timeout", "MCP ping timed out.");
+        }
+        finally
+        {
+            runtime.InvocationGate.Release();
         }
 
         await runtime.LifecycleGate.WaitAsync(cancellationToken);
@@ -287,11 +302,19 @@ internal sealed class McpConnectionManager(
 
         runtime.Status = McpConnectionState.Disconnecting;
         runtime.LifetimeCancellation.Cancel();
+        await runtime.InvocationGate.WaitAsync(CancellationToken.None);
         var session = runtime.Session;
-        runtime.Session = null;
-        if (session is not null)
+        try
         {
-            await session.DisposeAsync();
+            runtime.Session = null;
+            if (session is not null)
+            {
+                await session.DisposeAsync();
+            }
+        }
+        finally
+        {
+            runtime.InvocationGate.Release();
         }
 
         runtime.SessionInfo = null;

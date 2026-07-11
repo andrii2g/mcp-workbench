@@ -71,17 +71,17 @@ tests, and documentation for that item are present.
 
 ## Phase 5 — Runtime manager
 
-- [ ] Implement runtime dictionary.
-- [ ] Implement lifecycle semaphore per server.
-- [ ] Implement invocation semaphore per server.
-- [ ] Implement state transitions.
-- [ ] Implement idempotent connect/disconnect.
-- [ ] Implement force reconnect.
-- [ ] Link cancellation tokens correctly.
-- [ ] Cancel operations on definition update/delete.
-- [ ] Dispose all sessions during shutdown.
-- [ ] Implement bounded metadata history.
-- [ ] Test concurrency, failures, and process cleanup.
+- [x] Implement runtime dictionary.
+- [x] Implement lifecycle semaphore per server.
+- [x] Implement invocation semaphore per server.
+- [x] Implement state transitions.
+- [x] Implement idempotent connect/disconnect.
+- [x] Implement force reconnect.
+- [x] Link cancellation tokens correctly.
+- [x] Cancel operations on definition update/delete.
+- [x] Dispose all sessions during shutdown.
+- [x] Implement bounded metadata history.
+- [x] Test concurrency, failures, and process cleanup.
 
 ## Phase 6 — HTTP API
 

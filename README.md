@@ -14,6 +14,17 @@ tools manually without an LLM or model-provider account.
 - Static browser UI and versioned HTTP API
 - .NET 10 Native AOT publishing
 
+## Screenshots
+
+Click a thumbnail to view the full-size screenshot.
+
+<p align="center">
+  <a href="images/0.png"><img src="images/thumbnails/0.png" alt="Edit an MCP server" title="Edit an MCP server" width="190"></a>
+  <a href="images/1.png"><img src="images/thumbnails/1.png" alt="Inspect a connected MCP server and its tools" title="Inspect a connected MCP server and its tools" width="190"></a>
+  <a href="images/2.png"><img src="images/thumbnails/2.png" alt="Enter arguments and invoke an MCP tool" title="Enter arguments and invoke an MCP tool" width="190"></a>
+  <a href="images/3.png"><img src="images/thumbnails/3.png" alt="View an MCP tool result" title="View an MCP tool result" width="190"></a>
+</p>
+
 ## Quick Start
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).

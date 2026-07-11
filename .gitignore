@@ -49,4 +49,4 @@ crashdumps/
 # Generated package lock backups
 *.bak
 
-packages.lock.json
+/src/McpWorkbench/data

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <AssemblyName>mcp-workbench</AssemblyName>
     <RootNamespace>A2G.McpWorkbench</RootNamespace>
+    <Version>1.0</Version>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>

@@ -44,3 +44,7 @@ For native executable, Docker, API-key, and first-server instructions, see the
 
 Examples are available in [samples/servers.example.json](samples/servers.example.json)
 and [requests/McpWorkbench.http](requests/McpWorkbench.http).
+
+## License
+
+Licensed under the [MIT License](LICENSE). Copyright (c) 2026 [andrii2g](https://github.com/andrii2g).

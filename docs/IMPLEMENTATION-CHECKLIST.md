@@ -141,13 +141,13 @@ tests, and documentation for that item are present.
 
 - [ ] Publish `linux-x64`.
 - [ ] Publish `linux-arm64`.
-- [ ] Publish `win-x64`.
-- [ ] Resolve every trim/AOT warning.
-- [ ] Run published executable smoke tests.
+- [x] Publish `win-x64`.
+- [x] Resolve every trim/AOT warning on Windows; Linux verification remains pending.
+- [x] Run the published `win-x64` executable smoke test.
 - [ ] Build minimal container image.
 - [ ] Run container with persistent registry volume.
 - [ ] Verify non-root container operation where supported.
-- [ ] Generate checksums for release artifacts.
+- [x] Generate checksums for release artifacts.
 
 ## Phase 11 — Documentation and samples
 

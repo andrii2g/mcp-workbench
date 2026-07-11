@@ -22,4 +22,5 @@ jobs:
       - run: dotnet format McpWorkbench.slnx --verify-no-changes --no-restore
       - run: dotnet build McpWorkbench.slnx -c Release --no-restore
       - run: dotnet test McpWorkbench.slnx -c Release --no-build
-      - run: dotnet publish src/McpWorkbench/McpWorkbench.csproj -c Release -r linux-x64 --self-contained true --no-restore
+      - run: sh scripts/publish-aot.sh linux-x64
+      - run: sh scripts/aot-smoke.sh artifacts/linux-x64/mcp-workbench

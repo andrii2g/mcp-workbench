@@ -42,4 +42,15 @@ public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>
         Assert.DoesNotContain("eval(", source, StringComparison.Ordinal);
         Assert.DoesNotContain("new Function", source, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task ApiKeyFlow_UsesSessionStorageAndRequiredHeader()
+    {
+        var html = await _client.GetStringAsync("/", TestContext.Current.CancellationToken);
+        var client = await _client.GetStringAsync("/api-client.js", TestContext.Current.CancellationToken);
+
+        Assert.Contains("id=\"api-key-dialog\"", html, StringComparison.Ordinal);
+        Assert.Contains("sessionStorage", client, StringComparison.Ordinal);
+        Assert.Contains("X-Mcp-Workbench-Key", client, StringComparison.Ordinal);
+    }
 }

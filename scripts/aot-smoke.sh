@@ -4,7 +4,7 @@ set -eu
 executable="${1:-artifacts/linux-x64/mcp-workbench}"
 temporary_directory="$(mktemp -d)"
 registry="$temporary_directory/servers.json"
-port="${MCP_WORKBENCH_SMOKE_PORT:-5079}"
+port="${MCP_WORKBENCH_SMOKE_PORT:-$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')}"
 base_url="http://127.0.0.1:$port"
 pid=''
 

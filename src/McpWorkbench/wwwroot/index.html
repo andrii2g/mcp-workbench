@@ -31,6 +31,12 @@
       <div class="dialog-actions"><button value="cancel">Cancel</button><button class="danger" value="confirm">Confirm</button></div>
     </form>
   </dialog>
+  <dialog id="api-key-dialog" aria-labelledby="api-key-title">
+    <form method="dialog"><h2 id="api-key-title">API key required</h2>
+      <label class="field" for="api-key-input">API key<input id="api-key-input" type="password" autocomplete="off"></label>
+      <div class="dialog-actions"><button value="cancel">Cancel</button><button class="primary" value="confirm">Continue</button></div>
+    </form>
+  </dialog>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

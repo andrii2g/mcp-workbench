@@ -19,6 +19,7 @@ mcp-workbench/
 │   ├── IMPLEMENTATION-CHECKLIST.md
 │   ├── MCP-INTEGRATION.md
 │   ├── NATIVE-AOT.md
+│   ├── QUICKSTART.md
 │   ├── REFERENCES.md
 │   ├── REPOSITORY-STRUCTURE.md
 │   ├── SECURITY.md

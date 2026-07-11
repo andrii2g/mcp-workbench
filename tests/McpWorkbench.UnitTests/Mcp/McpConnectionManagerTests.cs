@@ -4,12 +4,27 @@ using McpWorkbench.Mcp;
 using McpWorkbench.Options;
 using McpWorkbench.Persistence;
 using McpWorkbench.Security;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace McpWorkbench.UnitTests.Mcp;
 
 public sealed class McpConnectionManagerTests
 {
+    [Fact]
+    public void OperationCompletedLog_ContainsRequiredOperationalFields()
+    {
+        var logger = new CapturingLogger();
+        var serverId = Guid.NewGuid();
+
+        RuntimeLog.OperationCompleted(logger, serverId, "invoke_tool", "succeeded", 42);
+
+        Assert.Contains(serverId.ToString(), logger.Message, StringComparison.Ordinal);
+        Assert.Contains("invoke_tool", logger.Message, StringComparison.Ordinal);
+        Assert.Contains("succeeded", logger.Message, StringComparison.Ordinal);
+        Assert.Contains("42", logger.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task ConnectAsync_WhenCalledConcurrently_CreatesOneSession()
     {
@@ -694,5 +709,14 @@ public sealed class McpConnectionManagerTests
     private sealed class EmptyEnvironmentValueProvider : IEnvironmentValueProvider
     {
         public string? GetValue(string name) => null;
+    }
+
+    private sealed class CapturingLogger : ILogger
+    {
+        public string Message { get; private set; } = string.Empty;
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Message = formatter(state, exception);
     }
 }

@@ -2,7 +2,8 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache clang build-base zlib-dev
 COPY . .
-RUN dotnet restore src/McpWorkbench/McpWorkbench.csproj --locked-mode -r linux-musl-x64 && \
+RUN dotnet restore src/McpWorkbench/McpWorkbench.csproj -r linux-musl-x64 \
+      -p:NuGetLockFilePath=/tmp/linux-musl-x64.packages.lock.json --force-evaluate && \
     dotnet publish src/McpWorkbench/McpWorkbench.csproj -c Release -r linux-musl-x64 \
       --self-contained true --no-restore -p:PublishAot=true -o /out
 

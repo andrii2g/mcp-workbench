@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using McpWorkbench.Domain;
@@ -55,6 +56,7 @@ internal sealed class McpConnectionManager(
                 runtime.Status = McpConnectionState.Connecting;
                 runtime.LastError = null;
                 ResetLifetime(runtime);
+                var operationStarted = Stopwatch.GetTimestamp();
                 RuntimeLog.Connecting(logger, serverId, definition.Transport);
 
                 IMcpClientSession? session = null;
@@ -81,6 +83,7 @@ internal sealed class McpConnectionManager(
                     runtime.LastOperationAtUtc = runtime.ConnectedAtUtc;
                     runtime.Status = McpConnectionState.Connected;
                     RuntimeLog.Connected(logger, serverId);
+                    LogOperationCompleted(serverId, "connect", "connected", operationStarted);
                     return Snapshot(runtime);
                 }
                 catch (Exception exception)
@@ -110,6 +113,7 @@ internal sealed class McpConnectionManager(
                         runtime.Status = McpConnectionState.Faulted;
                         runtime.LastError = new SafeRuntimeError(disposalFailure.Code, disposalFailure.Message);
                         RuntimeLog.ConnectionFailed(logger, serverId, disposalFailure.Code);
+                        LogOperationCompleted(serverId, "connect", disposalFailure.Code, operationStarted);
                         throw disposalFailure;
                     }
 
@@ -119,9 +123,11 @@ internal sealed class McpConnectionManager(
                         runtime.LastError = null;
                         if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                         {
+                            LogOperationCompleted(serverId, "connect", "connection_timeout", operationStarted);
                             throw new McpSessionException("connection_timeout", "MCP connection timed out.");
                         }
 
+                        LogOperationCompleted(serverId, "connect", "cancelled", operationStarted);
                         throw;
                     }
 
@@ -134,6 +140,7 @@ internal sealed class McpConnectionManager(
                     runtime.Status = McpConnectionState.Faulted;
                     runtime.LastError = new SafeRuntimeError(normalized.Code, normalized.Message);
                     RuntimeLog.ConnectionFailed(logger, serverId, normalized.Code);
+                    LogOperationCompleted(serverId, "connect", normalized.Code, operationStarted);
                     throw normalized;
                 }
             }
@@ -169,6 +176,7 @@ internal sealed class McpConnectionManager(
 
     public async ValueTask<ServerRuntimeSnapshot> PingAsync(Guid serverId, CancellationToken cancellationToken)
     {
+        var operationStarted = Stopwatch.GetTimestamp();
         var runtime = await GetConnectedRuntimeAsync(serverId, cancellationToken);
         IMcpClientSession session;
         CancellationToken lifetimeToken;
@@ -238,9 +246,11 @@ internal sealed class McpConnectionManager(
 
         if (failure is not null)
         {
+            LogOperationCompleted(serverId, "ping", failure.Code, operationStarted);
             throw failure;
         }
 
+        LogOperationCompleted(serverId, "ping", "succeeded", operationStarted);
         return snapshot;
     }
 
@@ -272,6 +282,7 @@ internal sealed class McpConnectionManager(
         bool refresh,
         CancellationToken cancellationToken)
     {
+        var operationStarted = Stopwatch.GetTimestamp();
         var runtime = await GetConnectedRuntimeAsync(serverId, cancellationToken);
         IMcpClientSession session;
         CancellationToken lifetimeToken;
@@ -331,6 +342,7 @@ internal sealed class McpConnectionManager(
 
             runtime.ToolCatalog = tools.ToArray();
             runtime.LastOperationAtUtc = timeProvider.GetUtcNow();
+            LogOperationCompleted(serverId, refresh ? "refresh_tools" : "list_tools", "succeeded", operationStarted);
             return runtime.ToolCatalog.ToArray();
         }
         finally
@@ -438,6 +450,7 @@ internal sealed class McpConnectionManager(
         {
             runtime.InvocationGate.Release();
             var completedAt = timeProvider.GetUtcNow();
+            LogOperationCompleted(serverId, "invoke_tool", status, startedAt, completedAt);
             runtime.History.Add(new ToolExecutionRecord(
                 Guid.NewGuid(),
                 serverId,
@@ -575,6 +588,7 @@ internal sealed class McpConnectionManager(
             return;
         }
 
+        var operationStarted = Stopwatch.GetTimestamp();
         runtime.Status = McpConnectionState.Disconnecting;
         runtime.LifetimeCancellation.Cancel();
         await runtime.InvocationGate.WaitAsync(CancellationToken.None);
@@ -608,12 +622,48 @@ internal sealed class McpConnectionManager(
             var failure = new McpSessionException("disconnection_failed", "The MCP session could not be disposed cleanly.");
             runtime.LastError = new SafeRuntimeError(failure.Code, failure.Message);
             runtime.Status = McpConnectionState.Faulted;
+            LogOperationCompleted(runtime.ServerId, "disconnect", failure.Code, operationStarted);
             throw failure;
         }
 
         runtime.LastError = null;
         runtime.Status = McpConnectionState.Disconnected;
         RuntimeLog.Disconnected(logger, runtime.ServerId);
+        LogOperationCompleted(runtime.ServerId, "disconnect", "disconnected", operationStarted);
+    }
+
+    private void LogOperationCompleted(Guid serverId, string operation, string status, long started)
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var durationMilliseconds = Math.Max(0, (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            RuntimeLog.OperationCompleted(
+                logger,
+                serverId,
+                operation,
+                status,
+                durationMilliseconds);
+        }
+    }
+
+    private void LogOperationCompleted(
+        Guid serverId,
+        string operation,
+        ToolExecutionStatus status,
+        DateTimeOffset started,
+        DateTimeOffset completed)
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var statusText = status.ToString();
+            var durationMilliseconds = Math.Max(0, (long)(completed - started).TotalMilliseconds);
+            RuntimeLog.OperationCompleted(
+                logger,
+                serverId,
+                operation,
+                statusText,
+                durationMilliseconds);
+        }
     }
 
     private static void ResetLifetime(McpServerRuntime runtime)
@@ -662,4 +712,7 @@ internal static partial class RuntimeLog
 
     [LoggerMessage(EventId = 3004, Level = LogLevel.Warning, Message = "MCP server {ServerId} connection failed with {ErrorCode}")]
     public static partial void ConnectionFailed(ILogger logger, Guid serverId, string errorCode);
+
+    [LoggerMessage(EventId = 3005, Level = LogLevel.Information, Message = "MCP server {ServerId} operation {Operation} completed with {Status} in {DurationMilliseconds} ms")]
+    public static partial void OperationCompleted(ILogger logger, Guid serverId, string operation, string status, long durationMilliseconds);
 }

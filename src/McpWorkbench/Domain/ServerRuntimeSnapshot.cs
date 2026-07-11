@@ -11,4 +11,6 @@ internal sealed record ServerRuntimeSnapshot(
     string? ProtocolVersion,
     string? ServerName,
     string? ServerVersion,
+    bool? SupportsTools,
+    bool? ToolsListChanged,
     int? ToolCount);

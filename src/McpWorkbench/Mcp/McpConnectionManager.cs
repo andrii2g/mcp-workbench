@@ -631,11 +631,15 @@ internal sealed class McpConnectionManager(
         runtime.SessionInfo?.ProtocolVersion,
         runtime.SessionInfo?.Server.Name,
         runtime.SessionInfo?.Server.Version,
+        runtime.SessionInfo?.Capabilities.Tools,
+        runtime.SessionInfo?.Capabilities.ToolsListChanged,
         runtime.ToolCatalog?.Count);
 
     private static ServerRuntimeSnapshot DisconnectedSnapshot(Guid serverId) => new(
         serverId,
         McpConnectionState.Disconnected,
+        null,
+        null,
         null,
         null,
         null,

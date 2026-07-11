@@ -98,18 +98,18 @@ tests, and documentation for that item are present.
 
 ## Phase 7 — HTTP API
 
-- [ ] Implement common response/error mapping.
-- [ ] Implement request ID middleware.
+- [x] Implement common response/error mapping.
+- [x] Implement request ID middleware.
 - [ ] Implement optional API-key middleware/filter.
-- [ ] Implement server CRUD endpoints.
-- [ ] Implement connect/disconnect/ping/runtime endpoints.
-- [ ] Implement list/refresh/read tool endpoints.
-- [ ] Implement invoke endpoint.
+- [x] Implement server CRUD endpoints.
+- [x] Implement connect/disconnect/ping/runtime endpoints.
+- [x] Implement list/refresh/read tool endpoints.
+- [x] Implement invoke endpoint.
 - [ ] Enforce request/body/time limits.
 - [ ] Add security headers.
 - [ ] Update OpenAPI only if it remains AOT-safe and explicitly selected; otherwise keep
       `.http` contract file authoritative.
-- [ ] Add route/status/contract integration tests.
+- [x] Add route/status/contract integration tests.
 
 ## Phase 8 — Static UI
 

@@ -1,3 +1,4 @@
+using McpWorkbench.Api;
 using McpWorkbench.Mcp;
 using McpWorkbench.Options;
 using McpWorkbench.Persistence;
@@ -48,11 +49,14 @@ builder.Services.AddSingleton<IServerDefinitionStore>(services =>
 
 var app = builder.Build();
 
+app.UseMiddleware<ApiMiddleware>();
+
 await app.Services.GetRequiredService<IServerDefinitionStore>()
     .InitializeAsync(app.Lifetime.ApplicationStopping);
 
 app.MapGet("/health/live", static () => TypedResults.Ok(new HealthResponse("live")));
 app.MapGet("/health/ready", static () => TypedResults.Ok(new HealthResponse("ready")));
+app.MapWorkbenchApi();
 
 app.Run();
 

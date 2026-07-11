@@ -33,6 +33,8 @@ builder.Services.AddSingleton<IAtomicFileWriter, AtomicFileWriter>();
 builder.Services.AddSingleton<IEnvironmentValueProvider, ProcessEnvironmentValueProvider>();
 builder.Services.AddSingleton<SecretReferenceResolver>();
 builder.Services.AddSingleton<IMcpClientSessionFactory, McpClientSessionFactory>();
+builder.Services.AddSingleton<IMcpConnectionManager, McpConnectionManager>();
+builder.Services.AddHostedService<McpRuntimeShutdownService>();
 builder.Services.AddSingleton<IServerDefinitionStore>(services =>
 {
     var options = services.GetRequiredService<IOptions<WorkbenchOptions>>().Value;

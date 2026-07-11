@@ -23,4 +23,5 @@ internal sealed record HealthResponse(string Status);
 [JsonSerializable(typeof(McpSessionInfo))]
 [JsonSerializable(typeof(ToolCatalogEntry[]))]
 [JsonSerializable(typeof(ToolInvocationOutcome))]
+[JsonSerializable(typeof(ToolExecutionRecord[]))]
 internal sealed partial class AppJsonSerializerContext : JsonSerializerContext;

@@ -37,12 +37,22 @@ internal sealed class McpClientSession(
         try
         {
             var tools = new List<Tool>();
+            var cursors = new HashSet<string>(StringComparer.Ordinal);
             string? cursor = null;
             do
             {
                 var page = await client.ListToolsAsync(cursor, cancellationToken);
+                if (page.Tools.Count > ToolCatalogMapper.MaximumToolCount - tools.Count)
+                {
+                    throw new McpSessionException("tool_catalog_unavailable", "MCP tool catalog exceeds the supported tool count.");
+                }
+
                 tools.AddRange(page.Tools);
                 cursor = page.NextCursor;
+                if (!string.IsNullOrEmpty(cursor) && !cursors.Add(cursor))
+                {
+                    throw new McpSessionException("tool_protocol_error", "MCP tool catalog pagination repeated a cursor.");
+                }
             }
             while (!string.IsNullOrEmpty(cursor));
 

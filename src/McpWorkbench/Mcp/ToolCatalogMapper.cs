@@ -6,7 +6,7 @@ namespace McpWorkbench.Mcp;
 
 internal static class ToolCatalogMapper
 {
-    private const int MaximumToolCount = 1_000;
+    internal const int MaximumToolCount = 1_000;
     private const int MaximumToolNameLength = 256;
     private const int MaximumDescriptionLength = 8_192;
     private const int MaximumAggregateSchemaBytes = 1_048_576;
@@ -15,7 +15,7 @@ internal static class ToolCatalogMapper
     {
         if (tools.Count > MaximumToolCount)
         {
-            throw new McpSessionException("tool_catalog_too_large", "MCP tool catalog exceeds the supported tool count.");
+            throw new McpSessionException("tool_catalog_unavailable", "MCP tool catalog exceeds the supported tool count.");
         }
 
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -25,25 +25,25 @@ internal static class ToolCatalogMapper
         {
             if (string.IsNullOrEmpty(tool.Name) || tool.Name.Length > MaximumToolNameLength || !names.Add(tool.Name))
             {
-                throw new McpSessionException("mcp_protocol_error", "MCP tool catalog contains an invalid or duplicate tool name.");
+                throw new McpSessionException("tool_protocol_error", "MCP tool catalog contains an invalid or duplicate tool name.");
             }
 
             if (tool.Description?.Length > MaximumDescriptionLength)
             {
-                throw new McpSessionException("tool_catalog_too_large", "MCP tool description exceeds the supported size.");
+                throw new McpSessionException("tool_catalog_unavailable", "MCP tool description exceeds the supported size.");
             }
 
             var inputSchema = tool.InputSchema.Clone();
             var outputSchema = tool.OutputSchema?.Clone();
-            schemaBytes = checked(schemaBytes + Encoding.UTF8.GetByteCount(inputSchema.GetRawText()));
+            schemaBytes += Encoding.UTF8.GetByteCount(inputSchema.GetRawText());
             if (outputSchema is not null)
             {
-                schemaBytes = checked(schemaBytes + Encoding.UTF8.GetByteCount(outputSchema.Value.GetRawText()));
+                schemaBytes += Encoding.UTF8.GetByteCount(outputSchema.Value.GetRawText());
             }
 
             if (schemaBytes > MaximumAggregateSchemaBytes)
             {
-                throw new McpSessionException("tool_catalog_too_large", "MCP tool schemas exceed the supported aggregate size.");
+                throw new McpSessionException("tool_catalog_unavailable", "MCP tool schemas exceed the supported aggregate size.");
             }
 
             var annotations = tool.Annotations;

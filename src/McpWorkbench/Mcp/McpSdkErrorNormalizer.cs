@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 
@@ -14,6 +15,9 @@ internal static class McpSdkErrorNormalizer
         HttpRequestException => new McpSessionException(
             "mcp_transport_failed",
             $"MCP HTTP transport failed during {operation}."),
+        JsonException => new McpSessionException(
+            "mcp_protocol_error",
+            $"MCP protocol operation '{operation}' returned malformed JSON."),
         McpException => new McpSessionException(
             operation == "initialization" ? "mcp_initialization_failed" : "mcp_protocol_error",
             $"MCP protocol operation '{operation}' failed."),

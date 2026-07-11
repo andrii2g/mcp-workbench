@@ -10,13 +10,13 @@ internal static class ToolResultMapper
     public static ToolInvocationOutcome Map(CallToolResult result, int maximumResultBytes)
     {
         var resultTypeInfo = McpJsonUtilities.DefaultOptions.GetTypeInfo(typeof(CallToolResult));
-        var rawBytes = JsonSerializer.SerializeToUtf8Bytes(result, resultTypeInfo);
-        if (rawBytes.Length > maximumResultBytes)
+        var rawBytes = new BoundedByteBufferWriter(maximumResultBytes);
+        using (var writer = new Utf8JsonWriter(rawBytes))
         {
-            throw new McpSessionException("mcp_result_too_large", "MCP tool result exceeds the configured size limit.");
+            JsonSerializer.Serialize(writer, result, resultTypeInfo);
         }
 
-        using var rawDocument = JsonDocument.Parse(rawBytes);
+        using var rawDocument = JsonDocument.Parse(rawBytes.WrittenMemory);
         var blocks = result.Content.Select(MapBlock).ToArray();
         return new ToolInvocationOutcome(
             result.IsError == true,

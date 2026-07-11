@@ -83,7 +83,20 @@ tests, and documentation for that item are present.
 - [x] Implement bounded metadata history.
 - [x] Test concurrency, failures, and process cleanup.
 
-## Phase 6 — HTTP API
+## Phase 6 — Tool catalog and invocation
+
+- [x] Implement cached tool discovery and explicit refresh.
+- [x] Retain the previous catalog when refresh fails.
+- [x] Enforce catalog count, cursor, schema, and metadata limits.
+- [x] Validate exact tool names and bounded JSON-object arguments.
+- [x] Serialize invocations per server with linked timeout and cancellation.
+- [x] Preserve tool errors separately from protocol and transport failures.
+- [x] Preserve known, structured, and bounded unknown result content.
+- [x] Record bounded metadata-only execution history.
+- [x] Add real stdio coverage for success, tool error, protocol error, timeout,
+      cancellation, result size, and default logging safety.
+
+## Phase 7 — HTTP API
 
 - [ ] Implement common response/error mapping.
 - [ ] Implement request ID middleware.
@@ -98,7 +111,7 @@ tests, and documentation for that item are present.
       `.http` contract file authoritative.
 - [ ] Add route/status/contract integration tests.
 
-## Phase 7 — Static UI
+## Phase 8 — Static UI
 
 - [ ] Build accessible application shell.
 - [ ] Build server list.
@@ -114,7 +127,7 @@ tests, and documentation for that item are present.
 - [ ] Add responsive CSS.
 - [ ] Complete manual accessibility/security checklist.
 
-## Phase 8 — Hardening
+## Phase 9 — Hardening
 
 - [ ] Enforce loopback-only default.
 - [ ] Enforce command/host allowlists.
@@ -126,7 +139,7 @@ tests, and documentation for that item are present.
 - [ ] Add graceful shutdown and orphan-process tests.
 - [ ] Complete documented threat review.
 
-## Phase 9 — AOT and packaging
+## Phase 10 — AOT and packaging
 
 - [ ] Publish `linux-x64`.
 - [ ] Publish `linux-arm64`.
@@ -138,7 +151,7 @@ tests, and documentation for that item are present.
 - [ ] Verify non-root container operation where supported.
 - [ ] Generate checksums for release artifacts.
 
-## Phase 10 — Documentation and samples
+## Phase 11 — Documentation and samples
 
 - [ ] Replace planning README with product README while preserving architecture links.
 - [ ] Add local run instructions.

@@ -52,6 +52,6 @@ public sealed class ToolResultMapperTests
 
         var exception = Assert.Throws<McpSessionException>(() => ToolResultMapper.Map(result, 100));
 
-        Assert.Equal("mcp_result_too_large", exception.Code);
+        Assert.Equal("result_too_large", exception.Code);
     }
 }

@@ -86,6 +86,48 @@ public sealed class McpConnectionManagerTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WhenPartialSessionDisposalFails_FaultsWithDisconnectionError()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.PingException = new McpSessionException("ping_failed", "Ping failed safely.");
+        session.DisposeException = new InvalidOperationException("Unsafe disposal detail.");
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken));
+        var snapshot = await fixture.Manager.GetRuntimeAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal("disconnection_failed", exception.Code);
+        Assert.Equal(McpConnectionState.Faulted, snapshot.Status);
+        Assert.Equal("disconnection_failed", snapshot.LastError?.Code);
+        Assert.Equal(1, session.DisposeCount);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WhenDeleteWinsLifecycleRace_DoesNotResurrectDeletedServer()
+    {
+        var fixture = Fixture(sessionCount: 2);
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        fixture.Store.BlockDeletes = true;
+        var delete = fixture.Manager.DeleteDefinitionAsync(
+            fixture.Definition.Id,
+            TestContext.Current.CancellationToken).AsTask();
+        await fixture.Store.DeleteStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var connect = fixture.Manager.ConnectAsync(
+            fixture.Definition.Id,
+            false,
+            TestContext.Current.CancellationToken).AsTask();
+
+        fixture.Store.ContinueDelete.TrySetResult();
+        Assert.True(await delete);
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () => await connect);
+
+        Assert.Equal("server_not_found", exception.Code);
+        Assert.Equal(1, fixture.Factory.CreateCount);
+        Assert.Equal(1, fixture.Factory.Sessions[0].DisposeCount);
+    }
+
+    [Fact]
     public async Task ReplaceDefinitionAsync_WhenPingIsActive_CancelsOperationAndDisconnects()
     {
         var fixture = Fixture();
@@ -136,6 +178,41 @@ public sealed class McpConnectionManagerTests
     }
 
     [Fact]
+    public async Task DisconnectAsync_WhenDisposalFails_ClearsSessionAndFaultsRuntime()
+    {
+        var fixture = Fixture();
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        fixture.Factory.Sessions[0].DisposeException = new InvalidOperationException("Unsafe disposal detail.");
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.DisconnectAsync(fixture.Definition.Id, TestContext.Current.CancellationToken));
+        var snapshot = await fixture.Manager.GetRuntimeAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal("disconnection_failed", exception.Code);
+        Assert.Equal(McpConnectionState.Faulted, snapshot.Status);
+        Assert.Equal("disconnection_failed", snapshot.LastError?.Code);
+        Assert.Null(snapshot.ConnectedAtUtc);
+        Assert.Null(snapshot.ProtocolVersion);
+    }
+
+    [Fact]
+    public async Task PingAsync_WhenPingFails_RecordsSafeRuntimeError()
+    {
+        var fixture = Fixture();
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        fixture.Factory.Sessions[0].PingException = new McpSessionException("ping_failed", "Safe ping failure.");
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.PingAsync(fixture.Definition.Id, TestContext.Current.CancellationToken));
+        var snapshot = await fixture.Manager.GetRuntimeAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal("ping_failed", exception.Code);
+        Assert.Equal(McpConnectionState.Connected, snapshot.Status);
+        Assert.Equal("ping_failed", snapshot.LastError?.Code);
+        Assert.NotNull(snapshot.LastOperationAtUtc);
+    }
+
+    [Fact]
     public async Task ShutdownService_WhenSessionsAreConnected_DisposesEverySession()
     {
         var first = Definition("First");
@@ -148,6 +225,26 @@ public sealed class McpConnectionManagerTests
 
         await new McpRuntimeShutdownService(manager).StopAsync(TestContext.Current.CancellationToken);
 
+        Assert.All(factory.Sessions, session => Assert.Equal(1, session.DisposeCount));
+    }
+
+    [Fact]
+    public async Task ShutdownService_WhenDisposalFails_ContinuesDisposingRemainingSessions()
+    {
+        var first = Definition("First");
+        var second = Definition("Second");
+        var store = new FakeStore(first, second);
+        var factory = new FakeSessionFactory([new FakeSession(), new FakeSession()]);
+        var manager = Manager(store, factory);
+        await manager.ConnectAsync(first.Id, false, TestContext.Current.CancellationToken);
+        await manager.ConnectAsync(second.Id, false, TestContext.Current.CancellationToken);
+        factory.Sessions[0].DisposeException = new InvalidOperationException("First disposal failed.");
+        factory.Sessions[1].DisposeException = new InvalidOperationException("Second disposal failed.");
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await new McpRuntimeShutdownService(manager).StopAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("disconnection_failed", exception.Code);
         Assert.All(factory.Sessions, session => Assert.Equal(1, session.DisposeCount));
     }
 
@@ -172,6 +269,182 @@ public sealed class McpConnectionManagerTests
         Assert.True(secondEntered);
     }
 
+    [Fact]
+    public async Task GetToolsAsync_CachesUntilExplicitRefresh()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.Tools = [Tool("echo")];
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        var first = await fixture.Manager.GetToolsAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        var cached = await fixture.Manager.GetToolsAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        var refreshed = await fixture.Manager.GetToolsAsync(fixture.Definition.Id, true, TestContext.Current.CancellationToken);
+
+        Assert.Single(first);
+        Assert.Single(cached);
+        Assert.Single(refreshed);
+        Assert.Equal(2, session.ListToolsCount);
+    }
+
+    [Fact]
+    public async Task GetToolsAsync_WhenRefreshFails_RetainsPreviousCatalog()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.Tools = [Tool("echo")];
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        await fixture.Manager.GetToolsAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        session.ListToolsException = new McpSessionException("mcp_protocol_error", "Invalid response.");
+
+        await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.GetToolsAsync(fixture.Definition.Id, true, TestContext.Current.CancellationToken));
+        session.ListToolsException = null;
+        var cached = await fixture.Manager.GetToolsAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        Assert.Equal("echo", Assert.Single(cached).Name);
+        Assert.Equal(2, session.ListToolsCount);
+    }
+
+    [Fact]
+    public async Task InvokeToolAsync_RecordsToolErrorAsCompletedOutcomeWithoutPayloads()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.Tools = [Tool("fail")];
+        session.InvocationOutcome = Outcome(isError: true);
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        var result = await fixture.Manager.InvokeToolAsync(
+            fixture.Definition.Id,
+            "fail",
+            JsonDocument.Parse("{\"secret\":\"do-not-store\"}").RootElement,
+            null,
+            TestContext.Current.CancellationToken);
+        var history = await fixture.Manager.GetExecutionHistoryAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsError);
+        var record = Assert.Single(history);
+        Assert.Equal(ToolExecutionStatus.ToolError, record.Outcome);
+        Assert.True(record.IsError);
+        Assert.DoesNotContain("do-not-store", JsonSerializer.Serialize(record));
+    }
+
+    [Fact]
+    public async Task InvokeToolAsync_UsesOrdinalCatalogLookupAndValidatesObjectArguments()
+    {
+        var fixture = Fixture();
+        fixture.Factory.Sessions[0].Tools = [Tool("Echo")];
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        var nameError = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.InvokeToolAsync(fixture.Definition.Id, "echo", EmptyArguments(), null, TestContext.Current.CancellationToken));
+        var argumentError = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.InvokeToolAsync(
+                fixture.Definition.Id,
+                "Echo",
+                JsonDocument.Parse("[]").RootElement,
+                null,
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("tool_not_found", nameError.Code);
+        Assert.Equal("tool_arguments_invalid", argumentError.Code);
+        Assert.Equal(0, fixture.Factory.Sessions[0].InvokeCount);
+    }
+
+    [Fact]
+    public async Task InvokeToolAsync_WhenSessionCancelsForTimeout_RecordsTimeout()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.Tools = [Tool("delay")];
+        session.BlockInvocations = true;
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.InvokeToolAsync(fixture.Definition.Id, "delay", EmptyArguments(), 1, TestContext.Current.CancellationToken));
+        var history = await fixture.Manager.GetExecutionHistoryAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal("tool_call_timeout", exception.Code);
+        Assert.Equal(ToolExecutionStatus.TimedOut, Assert.Single(history).Outcome);
+    }
+
+    [Fact]
+    public async Task InvokeToolAsync_WhenProtocolFails_PreservesSafeErrorCode()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.Tools = [Tool("echo")];
+        session.InvocationException = new McpSessionException("mcp_protocol_error", "Invalid MCP response.");
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.InvokeToolAsync(fixture.Definition.Id, "echo", EmptyArguments(), null, TestContext.Current.CancellationToken));
+        var history = await fixture.Manager.GetExecutionHistoryAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal("tool_protocol_error", exception.Code);
+        Assert.Equal("tool_protocol_error", Assert.Single(history).SafeErrorCode);
+    }
+
+    [Fact]
+    public async Task InvokeToolAsync_WhenCatalogChangesWhileWaiting_UsesLatestCatalog()
+    {
+        var fixture = Fixture();
+        var session = fixture.Factory.Sessions[0];
+        session.Tools = [Tool("echo")];
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        await fixture.Manager.GetToolsAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        session.Tools = [Tool("replacement")];
+        await fixture.Manager.GetToolsAsync(fixture.Definition.Id, true, TestContext.Current.CancellationToken);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.InvokeToolAsync(
+                fixture.Definition.Id,
+                "echo",
+                EmptyArguments(),
+                null,
+                TestContext.Current.CancellationToken));
+        Assert.Equal("tool_not_found", exception.Code);
+        Assert.Equal(0, session.InvokeCount);
+    }
+
+    [Fact]
+    public async Task InvokeToolAsync_WhenArgumentsExceedLimit_RejectsBeforeSessionCall()
+    {
+        var fixture = Fixture();
+        fixture.Factory.Sessions[0].Tools = [Tool("echo")];
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+        var arguments = JsonDocument.Parse($"{{\"value\":\"{new string('x', 2_000)}\"}}").RootElement;
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.InvokeToolAsync(
+                fixture.Definition.Id,
+                "echo",
+                arguments,
+                null,
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("request_too_large", exception.Code);
+        Assert.Equal(0, fixture.Factory.Sessions[0].InvokeCount);
+    }
+
+    private static ToolCatalogEntry Tool(string name) => new(
+        name,
+        null,
+        null,
+        JsonDocument.Parse("{\"type\":\"object\"}").RootElement.Clone(),
+        null,
+        new McpToolAnnotations(null, null, null, null, null));
+
+    private static JsonElement EmptyArguments() => JsonDocument.Parse("{}").RootElement.Clone();
+
+    private static ToolInvocationOutcome Outcome(bool isError) => new(
+        isError,
+        [],
+        null,
+        JsonDocument.Parse("{\"content\":[]}").RootElement.Clone(),
+        false);
+
     private static FixtureState Fixture(int sessionCount = 1)
     {
         var definition = Definition("Test");
@@ -189,7 +462,11 @@ public sealed class McpConnectionManagerTests
         {
             ConnectTimeoutSeconds = 5,
             PingTimeoutSeconds = 5,
-            MaximumHistoryEntriesPerServer = 2
+            DefaultOperationTimeoutSeconds = 5,
+            MaximumOperationTimeoutSeconds = 300,
+            MaximumArgumentsBytes = 1024,
+            MaximumHistoryEntriesPerServer = 2,
+            LoadToolsOnConnect = false
         }),
         NullLogger<McpConnectionManager>.Instance);
 
@@ -215,6 +492,10 @@ public sealed class McpConnectionManagerTests
     {
         private readonly object _gate = new();
         private readonly Dictionary<Guid, McpServerDefinition> _definitions = definitions.ToDictionary(item => item.Id);
+
+        public bool BlockDeletes { get; set; }
+        public TaskCompletionSource DeleteStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ContinueDelete { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public ValueTask InitializeAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
@@ -252,11 +533,17 @@ public sealed class McpConnectionManagerTests
             }
         }
 
-        public ValueTask<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+        public async ValueTask<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
         {
+            if (BlockDeletes)
+            {
+                DeleteStarted.TrySetResult();
+                await ContinueDelete.Task.WaitAsync(cancellationToken);
+            }
+
             lock (_gate)
             {
-                return ValueTask.FromResult(_definitions.Remove(id));
+                return _definitions.Remove(id);
             }
         }
     }
@@ -294,7 +581,15 @@ public sealed class McpConnectionManagerTests
     {
         public int DisposeCount { get; private set; }
         public Exception? PingException { get; set; }
+        public Exception? DisposeException { get; set; }
         public bool BlockPings { get; set; }
+        public bool BlockInvocations { get; set; }
+        public int ListToolsCount { get; private set; }
+        public int InvokeCount { get; private set; }
+        public IReadOnlyList<ToolCatalogEntry> Tools { get; set; } = [];
+        public ToolInvocationOutcome InvocationOutcome { get; set; } = Outcome(false);
+        public Exception? InvocationException { get; set; }
+        public Exception? ListToolsException { get; set; }
         public TaskCompletionSource PingStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public ValueTask<McpSessionInfo> GetSessionInfoAsync(CancellationToken cancellationToken) => ValueTask.FromResult(
@@ -321,15 +616,48 @@ public sealed class McpConnectionManagerTests
             }
         }
 
-        public ValueTask<IReadOnlyList<ToolCatalogEntry>> ListToolsAsync(CancellationToken cancellationToken) =>
-            ValueTask.FromResult<IReadOnlyList<ToolCatalogEntry>>([]);
+        public ValueTask<IReadOnlyList<ToolCatalogEntry>> ListToolsAsync(CancellationToken cancellationToken)
+        {
+            ListToolsCount++;
+            return ListToolsException is null
+                ? ValueTask.FromResult(Tools)
+                : ValueTask.FromException<IReadOnlyList<ToolCatalogEntry>>(ListToolsException);
+        }
 
-        public ValueTask<ToolInvocationOutcome> InvokeToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        public async ValueTask<ToolInvocationOutcome> InvokeToolAsync(
+            string name,
+            JsonElement arguments,
+            CancellationToken cancellationToken)
+        {
+            InvokeCount++;
+            if (InvocationException is not null)
+            {
+                throw InvocationException;
+            }
+
+            if (BlockInvocations)
+            {
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new McpSessionException("operation_cancelled", "Operation cancelled.");
+                }
+            }
+
+            return InvocationOutcome;
+        }
 
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
+            if (DisposeException is not null)
+            {
+                return ValueTask.FromException(DisposeException);
+            }
+
             return ValueTask.CompletedTask;
         }
     }

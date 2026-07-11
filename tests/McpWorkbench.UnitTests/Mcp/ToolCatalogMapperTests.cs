@@ -33,7 +33,7 @@ public sealed class ToolCatalogMapperTests
 
         var exception = Assert.Throws<McpSessionException>(() => ToolCatalogMapper.Map(tools));
 
-        Assert.Equal("mcp_protocol_error", exception.Code);
+        Assert.Equal("tool_protocol_error", exception.Code);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class ToolCatalogMapperTests
 
         var exception = Assert.Throws<McpSessionException>(() => ToolCatalogMapper.Map(tools));
 
-        Assert.Equal("tool_catalog_too_large", exception.Code);
+        Assert.Equal("tool_catalog_unavailable", exception.Code);
     }
 
     private static Tool Tool(string name)

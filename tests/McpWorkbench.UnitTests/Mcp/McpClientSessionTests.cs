@@ -49,6 +49,46 @@ public sealed class McpClientSessionTests
         Assert.Null(fake.LastCall);
     }
 
+    [Fact]
+    public async Task ListToolsAsync_WhenCursorRepeats_ThrowsProtocolError()
+    {
+        var fake = new FakeMcpSdkClient
+        {
+            ListToolsHandler = _ => new ListToolsResult { Tools = [], NextCursor = "repeat" }
+        };
+        await using var session = Session(fake);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await session.ListToolsAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("tool_protocol_error", exception.Code);
+    }
+
+    [Fact]
+    public async Task ListToolsAsync_WhenPageExceedsCatalogLimit_RejectsBeforeAccumulating()
+    {
+        var fake = new FakeMcpSdkClient
+        {
+            ListToolsHandler = cursor =>
+            {
+                var index = cursor is null ? 0 : int.Parse(cursor, System.Globalization.CultureInfo.InvariantCulture);
+                return new ListToolsResult
+                {
+                    Tools = [new Tool { Name = "echo", InputSchema = Json("""{"type":"object"}""") }],
+                    NextCursor = index < ToolCatalogMapper.MaximumToolCount ?
+                        (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) : null
+                };
+            }
+        };
+        await using var session = Session(fake);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await session.ListToolsAsync(TestContext.Current.CancellationToken));
+
+        Assert.Null(fake.ListToolsHandlerException);
+        Assert.Equal("tool_catalog_unavailable", exception.Code);
+    }
+
     private static McpClientSession Session(IMcpSdkClient client) => new(
         client,
         new McpSessionInfo(
@@ -69,6 +109,8 @@ public sealed class McpClientSessionTests
         public bool PingCalled { get; private set; }
         public CallToolRequestParams? LastCall { get; private set; }
         public int DisposeCount { get; private set; }
+        public Func<string?, ListToolsResult>? ListToolsHandler { get; init; }
+        public Exception? ListToolsHandlerException { get; private set; }
 
         public ValueTask PingAsync(CancellationToken cancellationToken)
         {
@@ -76,11 +118,21 @@ public sealed class McpClientSessionTests
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<ListToolsResult> ListToolsAsync(string? cursor, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new ListToolsResult
+        public ValueTask<ListToolsResult> ListToolsAsync(string? cursor, CancellationToken cancellationToken)
+        {
+            try
             {
-                Tools = [new Tool { Name = "echo", InputSchema = Json("""{"type":"object"}""") }]
-            });
+                return ValueTask.FromResult(ListToolsHandler?.Invoke(cursor) ?? new ListToolsResult
+                {
+                    Tools = [new Tool { Name = "echo", InputSchema = Json("""{"type":"object"}""") }]
+                });
+            }
+            catch (Exception exception)
+            {
+                ListToolsHandlerException = exception;
+                throw;
+            }
+        }
 
         public ValueTask<CallToolResult> CallToolAsync(CallToolRequestParams request, CancellationToken cancellationToken)
         {

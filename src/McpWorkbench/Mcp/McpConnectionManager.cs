@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Text;
+using System.Text.Json;
 using McpWorkbench.Domain;
 using McpWorkbench.Options;
 using McpWorkbench.Persistence;
@@ -22,76 +24,107 @@ internal sealed class McpConnectionManager(
         bool forceReconnect,
         CancellationToken cancellationToken)
     {
-        var definition = await store.GetAsync(serverId, cancellationToken) ??
-            throw new McpSessionException("server_not_found", "The MCP server was not found.");
-        if (!definition.Enabled)
+        while (true)
         {
-            throw new McpSessionException("server_disabled", "The MCP server is disabled.");
-        }
-
-        var runtime = GetOrCreateRuntime(serverId);
-        await runtime.LifecycleGate.WaitAsync(cancellationToken);
-        try
-        {
-            if (runtime.Status == McpConnectionState.Connected && !forceReconnect)
-            {
-                return Snapshot(runtime);
-            }
-
-            if (runtime.Status == McpConnectionState.Connected || runtime.Status == McpConnectionState.Faulted)
-            {
-                await DisconnectLockedAsync(runtime);
-            }
-
-            runtime.Status = McpConnectionState.Connecting;
-            runtime.LastError = null;
-            ResetLifetime(runtime);
-            RuntimeLog.Connecting(logger, serverId, definition.Transport);
-
-            IMcpClientSession? session = null;
-            using var timeout = new CancellationTokenSource(
-                TimeSpan.FromSeconds(options.Value.ConnectTimeoutSeconds),
-                timeProvider);
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken,
-                runtime.LifetimeCancellation.Token,
-                timeout.Token);
+            var runtime = GetOrCreateRuntime(serverId);
+            await runtime.LifecycleGate.WaitAsync(cancellationToken);
             try
             {
-                var resolved = secretResolver.Resolve(definition);
-                session = await sessionFactory.CreateAsync(definition, resolved, linked.Token);
-                await session.PingAsync(linked.Token);
-                var info = await session.GetSessionInfoAsync(linked.Token);
-                runtime.Session = session;
-                runtime.SessionInfo = info;
-                runtime.ConnectedAtUtc = timeProvider.GetUtcNow();
-                runtime.LastOperationAtUtc = runtime.ConnectedAtUtc;
-                runtime.Status = McpConnectionState.Connected;
-                RuntimeLog.Connected(logger, serverId);
-                return Snapshot(runtime);
-            }
-            catch (Exception exception)
-            {
-                if (session is not null)
+                if (!_runtimes.TryGetValue(serverId, out var currentRuntime) || !ReferenceEquals(currentRuntime, runtime))
                 {
-                    await session.DisposeAsync();
+                    continue;
                 }
 
-                runtime.Session = null;
-                runtime.SessionInfo = null;
-                runtime.ToolCatalog = null;
-                runtime.ConnectedAtUtc = null;
-                if (exception is OperationCanceledException or McpSessionException { Code: "operation_cancelled" })
+                var definition = await store.GetAsync(serverId, cancellationToken) ??
+                    throw new McpSessionException("server_not_found", "The MCP server was not found.");
+                if (!definition.Enabled)
                 {
-                    runtime.Status = McpConnectionState.Disconnected;
-                    runtime.LastError = null;
-                    if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-                    {
-                        throw new McpSessionException("connection_timeout", "MCP connection timed out.");
-                    }
+                    throw new McpSessionException("server_disabled", "The MCP server is disabled.");
                 }
-                else
+
+                if (runtime.Status == McpConnectionState.Connected && !forceReconnect)
                 {
+                    return Snapshot(runtime);
+                }
+
+                if (runtime.Status == McpConnectionState.Connected || runtime.Status == McpConnectionState.Faulted)
+                {
+                    await DisconnectLockedAsync(runtime);
+                }
+
+                runtime.Status = McpConnectionState.Connecting;
+                runtime.LastError = null;
+                ResetLifetime(runtime);
+                RuntimeLog.Connecting(logger, serverId, definition.Transport);
+
+                IMcpClientSession? session = null;
+                using var timeout = new CancellationTokenSource(
+                    TimeSpan.FromSeconds(options.Value.ConnectTimeoutSeconds),
+                    timeProvider);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    runtime.LifetimeCancellation.Token,
+                    timeout.Token);
+                try
+                {
+                    var resolved = secretResolver.Resolve(definition);
+                    session = await sessionFactory.CreateAsync(definition, resolved, linked.Token);
+                    await session.PingAsync(linked.Token);
+                    var info = await session.GetSessionInfoAsync(linked.Token);
+                    var tools = options.Value.LoadToolsOnConnect
+                        ? await session.ListToolsAsync(linked.Token)
+                        : null;
+                    runtime.Session = session;
+                    runtime.SessionInfo = info;
+                    runtime.ToolCatalog = tools;
+                    runtime.ConnectedAtUtc = timeProvider.GetUtcNow();
+                    runtime.LastOperationAtUtc = runtime.ConnectedAtUtc;
+                    runtime.Status = McpConnectionState.Connected;
+                    RuntimeLog.Connected(logger, serverId);
+                    return Snapshot(runtime);
+                }
+                catch (Exception exception)
+                {
+                    Exception? disposalException = null;
+                    if (session is not null)
+                    {
+                        try
+                        {
+                            await session.DisposeAsync();
+                        }
+                        catch (Exception disposeFailure)
+                        {
+                            disposalException = disposeFailure;
+                        }
+                    }
+
+                    runtime.Session = null;
+                    runtime.SessionInfo = null;
+                    runtime.ToolCatalog = null;
+                    runtime.ConnectedAtUtc = null;
+                    if (disposalException is not null)
+                    {
+                        var disposalFailure = new McpSessionException(
+                            "disconnection_failed",
+                            "The partially connected MCP session could not be disposed cleanly.");
+                        runtime.Status = McpConnectionState.Faulted;
+                        runtime.LastError = new SafeRuntimeError(disposalFailure.Code, disposalFailure.Message);
+                        RuntimeLog.ConnectionFailed(logger, serverId, disposalFailure.Code);
+                        throw disposalFailure;
+                    }
+
+                    if (exception is OperationCanceledException or McpSessionException { Code: "operation_cancelled" })
+                    {
+                        runtime.Status = McpConnectionState.Disconnected;
+                        runtime.LastError = null;
+                        if (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                        {
+                            throw new McpSessionException("connection_timeout", "MCP connection timed out.");
+                        }
+
+                        throw;
+                    }
+
                     var normalized = exception switch
                     {
                         McpSessionException sessionException => sessionException,
@@ -103,13 +136,11 @@ internal sealed class McpConnectionManager(
                     RuntimeLog.ConnectionFailed(logger, serverId, normalized.Code);
                     throw normalized;
                 }
-
-                throw;
             }
-        }
-        finally
-        {
-            runtime.LifecycleGate.Release();
+            finally
+            {
+                runtime.LifecycleGate.Release();
+            }
         }
     }
 
@@ -166,30 +197,51 @@ internal sealed class McpConnectionManager(
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.PingTimeoutSeconds), timeProvider);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetimeToken, timeout.Token);
+        McpSessionException? failure = null;
         try
         {
             await session.PingAsync(linked.Token);
         }
-        catch (McpSessionException exception) when (exception.Code == "operation_cancelled" && timeout.IsCancellationRequested)
+        catch (Exception exception)
         {
-            throw new McpSessionException("ping_timeout", "MCP ping timed out.");
+            failure = exception switch
+            {
+                McpSessionException { Code: "operation_cancelled" } when timeout.IsCancellationRequested =>
+                    new McpSessionException("ping_timeout", "MCP ping timed out."),
+                OperationCanceledException when timeout.IsCancellationRequested =>
+                    new McpSessionException("ping_timeout", "MCP ping timed out."),
+                McpSessionException sessionException => sessionException,
+                _ => McpSdkErrorNormalizer.Normalize(exception, "ping")
+            };
         }
         finally
         {
             runtime.InvocationGate.Release();
         }
 
-        await runtime.LifecycleGate.WaitAsync(cancellationToken);
+        ServerRuntimeSnapshot snapshot;
+        await runtime.LifecycleGate.WaitAsync(CancellationToken.None);
         try
         {
-            runtime.LastOperationAtUtc = timeProvider.GetUtcNow();
-            runtime.LastError = null;
-            return Snapshot(runtime);
+            if (runtime.Status == McpConnectionState.Connected && ReferenceEquals(runtime.Session, session))
+            {
+                runtime.LastOperationAtUtc = timeProvider.GetUtcNow();
+                runtime.LastError = failure is null ? null : new SafeRuntimeError(failure.Code, failure.Message);
+            }
+
+            snapshot = Snapshot(runtime);
         }
         finally
         {
             runtime.LifecycleGate.Release();
         }
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+
+        return snapshot;
     }
 
     public async ValueTask<ServerRuntimeSnapshot> GetRuntimeAsync(Guid serverId, CancellationToken cancellationToken)
@@ -213,6 +265,216 @@ internal sealed class McpConnectionManager(
         {
             runtime.LifecycleGate.Release();
         }
+    }
+
+    public async ValueTask<IReadOnlyList<ToolCatalogEntry>> GetToolsAsync(
+        Guid serverId,
+        bool refresh,
+        CancellationToken cancellationToken)
+    {
+        var runtime = await GetConnectedRuntimeAsync(serverId, cancellationToken);
+        IMcpClientSession session;
+        CancellationToken lifetimeToken;
+        var invocationAcquired = false;
+        await runtime.LifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!refresh && runtime.ToolCatalog is not null)
+            {
+                return runtime.ToolCatalog.ToArray();
+            }
+
+            await runtime.InvocationGate.WaitAsync(cancellationToken);
+            invocationAcquired = true;
+            session = runtime.Session ?? throw new McpSessionException("server_not_connected", "The MCP server is not connected.");
+            lifetimeToken = runtime.LifetimeCancellation.Token;
+        }
+        catch
+        {
+            if (invocationAcquired)
+            {
+                runtime.InvocationGate.Release();
+            }
+
+            throw;
+        }
+        finally
+        {
+            runtime.LifecycleGate.Release();
+        }
+
+        IReadOnlyList<ToolCatalogEntry> tools;
+        using var timeout = new CancellationTokenSource(
+            TimeSpan.FromSeconds(options.Value.DefaultOperationTimeoutSeconds),
+            timeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetimeToken, timeout.Token);
+        try
+        {
+            tools = await session.ListToolsAsync(linked.Token);
+        }
+        catch (McpSessionException exception) when (exception.Code == "operation_cancelled" && timeout.IsCancellationRequested)
+        {
+            throw new McpSessionException("tool_catalog_unavailable", "Loading the MCP tool catalog timed out.");
+        }
+        finally
+        {
+            runtime.InvocationGate.Release();
+        }
+
+        await runtime.LifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (runtime.Status != McpConnectionState.Connected || !ReferenceEquals(runtime.Session, session))
+            {
+                throw new McpSessionException("server_not_connected", "The MCP server is not connected.");
+            }
+
+            runtime.ToolCatalog = tools.ToArray();
+            runtime.LastOperationAtUtc = timeProvider.GetUtcNow();
+            return runtime.ToolCatalog.ToArray();
+        }
+        finally
+        {
+            runtime.LifecycleGate.Release();
+        }
+    }
+
+    public async ValueTask<ToolInvocationOutcome> InvokeToolAsync(
+        Guid serverId,
+        string toolName,
+        JsonElement arguments,
+        int? timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        if (arguments.ValueKind != JsonValueKind.Object)
+        {
+            throw new McpSessionException("tool_arguments_invalid", "Tool arguments must be a JSON object.");
+        }
+
+        if (Encoding.UTF8.GetByteCount(arguments.GetRawText()) > options.Value.MaximumArgumentsBytes)
+        {
+            throw new McpSessionException("request_too_large", "Tool arguments exceed the configured size limit.");
+        }
+
+        var definition = await store.GetAsync(serverId, cancellationToken) ??
+            throw new McpSessionException("server_not_found", "The MCP server was not found.");
+        var effectiveTimeout = timeoutSeconds ?? definition.OperationTimeoutSeconds;
+        if (effectiveTimeout < 1 || effectiveTimeout > options.Value.MaximumOperationTimeoutSeconds)
+        {
+            throw new McpSessionException("invalid_operation_timeout", "The operation timeout is outside the configured range.");
+        }
+
+        await GetToolsAsync(serverId, false, cancellationToken);
+
+        var runtime = await GetConnectedRuntimeAsync(serverId, cancellationToken);
+        IMcpClientSession session;
+        CancellationToken lifetimeToken;
+        var invocationAcquired = false;
+        await runtime.LifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            await runtime.InvocationGate.WaitAsync(cancellationToken);
+            invocationAcquired = true;
+            session = runtime.Session ?? throw new McpSessionException("server_not_connected", "The MCP server is not connected.");
+            if (runtime.ToolCatalog is null ||
+                !runtime.ToolCatalog.Any(tool => string.Equals(tool.Name, toolName, StringComparison.Ordinal)))
+            {
+                throw new McpSessionException("tool_not_found", "The requested tool is not in the loaded catalog.");
+            }
+
+            lifetimeToken = runtime.LifetimeCancellation.Token;
+        }
+        catch
+        {
+            if (invocationAcquired)
+            {
+                runtime.InvocationGate.Release();
+            }
+
+            throw;
+        }
+        finally
+        {
+            runtime.LifecycleGate.Release();
+        }
+
+        var startedAt = timeProvider.GetUtcNow();
+        ToolInvocationOutcome? outcome = null;
+        McpSessionException? failure = null;
+        var status = ToolExecutionStatus.Failed;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(effectiveTimeout), timeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetimeToken, timeout.Token);
+        try
+        {
+            outcome = await session.InvokeToolAsync(toolName, arguments, linked.Token);
+            status = outcome.IsError ? ToolExecutionStatus.ToolError : ToolExecutionStatus.Succeeded;
+            return outcome;
+        }
+        catch (Exception exception)
+        {
+            failure = exception switch
+            {
+                McpSessionException { Code: "operation_cancelled" } when timeout.IsCancellationRequested =>
+                    new McpSessionException("tool_call_timeout", "The MCP tool call timed out."),
+                McpSessionException { Code: "operation_cancelled" } =>
+                    new McpSessionException("tool_call_cancelled", "The MCP tool call was cancelled."),
+                OperationCanceledException when timeout.IsCancellationRequested =>
+                    new McpSessionException("tool_call_timeout", "The MCP tool call timed out."),
+                OperationCanceledException =>
+                    new McpSessionException("tool_call_cancelled", "The MCP tool call was cancelled."),
+                McpSessionException { Code: "mcp_protocol_error" } =>
+                    new McpSessionException("tool_protocol_error", "The MCP tool call returned an invalid protocol response."),
+                McpSessionException sessionException => sessionException,
+                _ => McpSdkErrorNormalizer.Normalize(exception, "tool_call")
+            };
+            status = failure.Code == "tool_call_timeout"
+                ? ToolExecutionStatus.TimedOut
+                : failure.Code == "tool_call_cancelled"
+                    ? ToolExecutionStatus.Cancelled
+                    : ToolExecutionStatus.Failed;
+            throw failure;
+        }
+        finally
+        {
+            runtime.InvocationGate.Release();
+            var completedAt = timeProvider.GetUtcNow();
+            runtime.History.Add(new ToolExecutionRecord(
+                Guid.NewGuid(),
+                serverId,
+                toolName,
+                startedAt,
+                completedAt,
+                Math.Max(0, (long)(completedAt - startedAt).TotalMilliseconds),
+                status,
+                outcome?.IsError,
+                failure?.Code));
+            await runtime.LifecycleGate.WaitAsync(CancellationToken.None);
+            try
+            {
+                runtime.LastOperationAtUtc = completedAt;
+            }
+            finally
+            {
+                runtime.LifecycleGate.Release();
+            }
+        }
+    }
+
+    public async ValueTask<IReadOnlyList<ToolExecutionRecord>> GetExecutionHistoryAsync(
+        Guid serverId,
+        CancellationToken cancellationToken)
+    {
+        if (!_runtimes.TryGetValue(serverId, out var runtime))
+        {
+            if (await store.GetAsync(serverId, cancellationToken) is null)
+            {
+                throw new McpSessionException("server_not_found", "The MCP server was not found.");
+            }
+
+            return [];
+        }
+
+        return runtime.History.Snapshot();
     }
 
     public async ValueTask<McpServerDefinition> ReplaceDefinitionAsync(
@@ -260,17 +522,30 @@ internal sealed class McpConnectionManager(
 
     public async ValueTask DisconnectAllAsync(CancellationToken cancellationToken)
     {
+        McpSessionException? firstFailure = null;
         foreach (var runtime in _runtimes.Values)
         {
             await runtime.LifecycleGate.WaitAsync(cancellationToken);
             try
             {
-                await DisconnectLockedAsync(runtime);
+                try
+                {
+                    await DisconnectLockedAsync(runtime);
+                }
+                catch (McpSessionException exception)
+                {
+                    firstFailure ??= exception;
+                }
             }
             finally
             {
                 runtime.LifecycleGate.Release();
             }
+        }
+
+        if (firstFailure is not null)
+        {
+            throw firstFailure;
         }
     }
 
@@ -304,12 +579,20 @@ internal sealed class McpConnectionManager(
         runtime.LifetimeCancellation.Cancel();
         await runtime.InvocationGate.WaitAsync(CancellationToken.None);
         var session = runtime.Session;
+        Exception? disposalException = null;
         try
         {
             runtime.Session = null;
             if (session is not null)
             {
-                await session.DisposeAsync();
+                try
+                {
+                    await session.DisposeAsync();
+                }
+                catch (Exception exception)
+                {
+                    disposalException = exception;
+                }
             }
         }
         finally
@@ -320,6 +603,14 @@ internal sealed class McpConnectionManager(
         runtime.SessionInfo = null;
         runtime.ToolCatalog = null;
         runtime.ConnectedAtUtc = null;
+        if (disposalException is not null)
+        {
+            var failure = new McpSessionException("disconnection_failed", "The MCP session could not be disposed cleanly.");
+            runtime.LastError = new SafeRuntimeError(failure.Code, failure.Message);
+            runtime.Status = McpConnectionState.Faulted;
+            throw failure;
+        }
+
         runtime.LastError = null;
         runtime.Status = McpConnectionState.Disconnected;
         RuntimeLog.Disconnected(logger, runtime.ServerId);

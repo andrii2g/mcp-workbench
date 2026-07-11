@@ -125,15 +125,17 @@ tests, and documentation for that item are present.
 
 ## Phase 9 — Hardening
 
-- [ ] Enforce loopback-only default.
-- [ ] Enforce command/host allowlists.
-- [ ] Validate redirects and protect headers.
-- [ ] Enforce result/catalog/stderr limits.
-- [ ] Verify no static access to data directory.
-- [ ] Add CSP and related headers.
-- [ ] Add malicious-content tests.
-- [ ] Add graceful shutdown and orphan-process tests.
-- [ ] Complete documented threat review.
+- [x] Implement optional constant-time API-key protection.
+- [x] Enforce the HTTP request body limit.
+- [x] Enforce loopback-only default.
+- [x] Enforce command/host allowlists.
+- [x] Validate redirects and protect headers.
+- [x] Enforce result/catalog limits; do not retain SDK-owned stderr.
+- [x] Verify no static access to data directory.
+- [x] Add CSP and related headers.
+- [x] Add malicious-content tests.
+- [x] Add graceful shutdown and orphan-process tests.
+- [x] Complete documented threat review.
 
 ## Phase 10 — AOT and packaging
 

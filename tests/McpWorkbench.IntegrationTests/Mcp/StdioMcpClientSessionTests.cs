@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using McpWorkbench.Domain;
 using McpWorkbench.Mcp;
@@ -11,6 +12,39 @@ namespace McpWorkbench.IntegrationTests.Mcp;
 
 public sealed class StdioMcpClientSessionTests
 {
+    [Fact]
+    public async Task Session_DisposeTerminatesOwnedStdioProcess()
+    {
+        var serverAssembly = GetTestServerAssemblyPath();
+        var pidFile = Path.Combine(Path.GetTempPath(), $"mcp-workbench-{Guid.NewGuid():N}.pid");
+        var definition = Definition(serverAssembly) with
+        {
+            Stdio = Definition(serverAssembly).Stdio! with
+            {
+                Environment = new Dictionary<string, string> { ["MCP_WORKBENCH_TEST_PID_FILE"] = pidFile }
+            }
+        };
+        var resolved = new SecretReferenceResolver(new EmptyEnvironmentValueProvider()).Resolve(definition);
+        var factory = new McpClientSessionFactory(
+            NullLoggerFactory.Instance,
+            Microsoft.Extensions.Options.Options.Create(
+                new WorkbenchOptions { ConnectTimeoutSeconds = 10, MaximumResultBytes = 1_000_000 }));
+
+        var session = await factory.CreateAsync(definition, resolved, TestContext.Current.CancellationToken);
+        int processId;
+        try
+        {
+            processId = await WaitForProcessIdAsync(pidFile, TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            await session.DisposeAsync();
+        }
+
+        await WaitForProcessExitAsync(processId, TestContext.Current.CancellationToken);
+        File.Delete(pidFile);
+    }
+
     [Fact]
     public async Task Session_WhenUsingDeterministicServer_ConnectsDiscoversInvokesAndCancels()
     {
@@ -203,6 +237,44 @@ public sealed class StdioMcpClientSessionTests
     {
         using var document = JsonDocument.Parse(value);
         return document.RootElement.Clone();
+    }
+
+    private static async Task<int> WaitForProcessIdAsync(string path, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            if (File.Exists(path) && int.TryParse(await File.ReadAllTextAsync(path, cancellationToken), out var processId))
+            {
+                return processId;
+            }
+
+            await Task.Delay(50, cancellationToken);
+        }
+
+        throw new TimeoutException("The stdio test server did not publish its process ID.");
+    }
+
+    private static async Task WaitForProcessExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                if (process.HasExited)
+                {
+                    return;
+                }
+            }
+            catch (ArgumentException)
+            {
+                return;
+            }
+
+            await Task.Delay(50, cancellationToken);
+        }
+
+        throw new TimeoutException($"Stdio process {processId} remained alive after session disposal.");
     }
 
     private sealed class EmptyEnvironmentValueProvider : IEnvironmentValueProvider

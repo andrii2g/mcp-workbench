@@ -73,6 +73,8 @@ internal static class ApiEndpoints
         {
             return ValidationFailure(context, timeProvider, validation.Errors);
         }
+        var policyErrors = ValidatePolicy(validation.Value!, options.Value);
+        if (policyErrors.Count > 0) return ValidationFailure(context, timeProvider, policyErrors);
 
         var now = timeProvider.GetUtcNow();
         var definition = MapDefinition(Guid.NewGuid(), validation.Value!, now, now);
@@ -109,6 +111,8 @@ internal static class ApiEndpoints
         {
             return ValidationFailure(context, timeProvider, validation.Errors);
         }
+        var policyErrors = ValidatePolicy(validation.Value!, options.Value);
+        if (policyErrors.Count > 0) return ValidationFailure(context, timeProvider, policyErrors);
 
         var current = await RequiredDefinitionAsync(store, serverId, cancellationToken);
         var definition = MapDefinition(serverId, validation.Value!, current.CreatedAtUtc, timeProvider.GetUtcNow());
@@ -291,6 +295,25 @@ internal static class ApiEndpoints
 
         return parsed;
     }
+
+    private static List<ValidationError> ValidatePolicy(CreateServerRequest request, WorkbenchOptions options)
+    {
+        var errors = new List<ValidationError>();
+        if (request.Transport == McpTransportKind.Stdio)
+        {
+            if (!options.AllowStdioServers) errors.Add(new("transport", "transport_disabled", "Stdio servers are disabled."));
+            else if (options.AllowedStdioCommands.Length > 0 && !options.AllowedStdioCommands.Contains(request.Stdio!.Command!, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)) errors.Add(new("stdio.command", "command_not_allowed", "The stdio command is not allowed."));
+        }
+        else
+        {
+            if (!options.AllowHttpServers) errors.Add(new("transport", "transport_disabled", "HTTP servers are disabled."));
+            else if (options.AllowedHttpHosts.Length > 0 && Uri.TryCreate(request.Http!.Endpoint, UriKind.Absolute, out var endpoint) && !options.AllowedHttpHosts.Contains(endpoint.Host, StringComparer.OrdinalIgnoreCase)) errors.Add(new("http.endpoint", "host_not_allowed", "The HTTP host is not allowed."));
+        }
+        return errors;
+    }
+
+    private static List<ValidationError> ValidatePolicy(UpdateServerRequest request, WorkbenchOptions options) =>
+        ValidatePolicy(new CreateServerRequest(request.Name, request.Description, request.Enabled, request.Transport, request.Stdio, request.Http, request.OperationTimeoutSeconds), options);
 
     private static void EnsureInvocationResponseSize(ToolInvocationResponse response, int maximumBytes)
     {

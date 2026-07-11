@@ -9,6 +9,12 @@ internal static class Program
 {
     public static async Task Main(string[] args)
     {
+        var pidFile = Environment.GetEnvironmentVariable("MCP_WORKBENCH_TEST_PID_FILE");
+        if (!string.IsNullOrWhiteSpace(pidFile))
+        {
+            await File.WriteAllTextAsync(pidFile, Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
         if (args.Contains("--malformed-tools", StringComparer.Ordinal))
         {
             await RunMalformedToolsServerAsync();

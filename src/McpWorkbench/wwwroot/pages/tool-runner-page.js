@@ -1,5 +1,65 @@
-import { el } from "../dom.js"; import { jsonEditor } from "../components/json-editor.js"; import { schemaForm } from "../components/schema-form.js"; import { resultViewer } from "../components/result-viewer.js";
+import { el } from "../dom.js";
+import { jsonEditor } from "../components/json-editor.js";
+import { schemaForm } from "../components/schema-form.js";
+import { resultViewer } from "../components/result-viewer.js";
+
 export function toolRunnerPage(server, tool, actions) {
-  let syncing = false; let form; const raw = jsonEditor("{}", value => { if (!syncing) form?.set(value); }); form = schemaForm(tool.inputSchema || {}, {}, value => { const current = raw.value() || {}; syncing = true; raw.set({ ...current, ...value }); syncing = false; }); const panels = el("div", { class: "editor-panels" }); const formPanel = el("div", {}, form.node); const rawPanel = el("div", { hidden: "" }, raw.node); panels.append(formPanel, rawPanel); const tabs = el("div", { class: "tabs", role: "tablist" }); const show = mode => { if (mode === "form") { const current = raw.value(); if (!current) return; form.set(current); } formPanel.hidden = mode !== "form"; rawPanel.hidden = mode !== "raw"; [...tabs.children].forEach(x => x.setAttribute("aria-selected", String(x.dataset.mode === mode))); }; tabs.append(el("button", { type: "button", role: "tab", "data-mode": "form", "aria-selected": "true", text: "Form", onclick: () => show("form") }), el("button", { type: "button", role: "tab", "data-mode": "raw", "aria-selected": "false", text: "Raw JSON", onclick: () => show("raw") })); const timeout = el("input", { type: "number", min: "1", max: "300", value: server.operationTimeoutSeconds || 30, "aria-label": "Invocation timeout in seconds" }); const result = el("div"); const run = el("button", { class: "primary", text: "Run tool" }); const cancel = el("button", { class: "secondary", text: "Cancel", disabled: "" }); run.addEventListener("click", async () => { const value = raw.value(); if (!value) { show("raw"); return; } run.disabled = true; cancel.disabled = false; result.replaceChildren(el("div", { class: "loading", text: "Running tool..." })); try { const data = await actions.run(value, Number(timeout.value)); result.replaceChildren(resultViewer(data)); } catch (e) { result.replaceChildren(el("div", { class: "error-banner", text: `${e.message} (${e.code || "error"})` })); } finally { run.disabled = false; cancel.disabled = true; } }); cancel.addEventListener("click", actions.cancel);
-  return el("section", {}, el("div", { class: "page-head" }, el("div", {}, el("p", { class: "eyebrow", text: `Server: ${server.name}` }), el("h1", { text: tool.title || tool.name }), el("code", { text: `Tool: ${tool.name}` })), el("a", { class: "secondary", href: `#/servers/${server.id}`, text: "Back to server" })), el("p", { class: "subtitle", text: tool.description || "No description provided." }), el("div", { class: "annotations" }, ...Object.entries(tool.annotations || {}).filter(([, v]) => v !== null).map(([k, v]) => el("span", { text: `${k}: ${v}` }))), el("details", {}, el("summary", { text: "Input schema" }), el("pre", { class: "result-json", text: JSON.stringify(tool.inputSchema, null, 2) })), el("section", { class: "runner" }, el("h2", { text: "Arguments" }), tabs, panels, el("div", { class: "runbar" }, el("label", {}, "Timeout ", timeout, " seconds"), el("div", { class: "actions" }, run, cancel))), result);
+  let syncing = false;
+  let form;
+  const raw = jsonEditor("{}", value => { if (!syncing) form?.set(value); });
+  form = schemaForm(tool.inputSchema || {}, {}, value => {
+    const current = raw.value() || {};
+    syncing = true;
+    raw.set({ ...current, ...value });
+    syncing = false;
+  });
+  const panels = el("div", { class: "editor-panels" });
+  const formPanel = el("div", {}, form.node);
+  const rawPanel = el("div", { hidden: "" }, raw.node);
+  panels.append(formPanel, rawPanel);
+  const tabs = el("div", { class: "tabs", role: "tablist" });
+  const show = mode => {
+    if (mode === "form") {
+      const current = raw.value();
+      if (!current) return;
+      form.set(current);
+    }
+    formPanel.hidden = mode !== "form";
+    rawPanel.hidden = mode !== "raw";
+    [...tabs.children].forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.mode === mode)));
+  };
+  tabs.append(
+    el("button", { type: "button", role: "tab", "data-mode": "form", "aria-selected": "true", text: "Form", onclick: () => show("form") }),
+    el("button", { type: "button", role: "tab", "data-mode": "raw", "aria-selected": "false", text: "Raw JSON", onclick: () => show("raw") }));
+  const timeout = el("input", { type: "number", min: "1", max: "300", value: server.operationTimeoutSeconds || 30, "aria-label": "Invocation timeout in seconds" });
+  const result = el("div");
+  const run = el("button", { class: "primary", text: "Run tool" });
+  const cancel = el("button", { class: "secondary", text: "Cancel", disabled: "" });
+  run.addEventListener("click", async () => {
+    const value = raw.value();
+    if (!value) { show("raw"); return; }
+    run.disabled = true;
+    cancel.disabled = false;
+    result.replaceChildren(el("div", { class: "loading", text: "Running tool..." }));
+    try {
+      const data = await actions.run(value, Number(timeout.value));
+      result.replaceChildren(resultViewer(data));
+    } catch (exception) {
+      result.replaceChildren(el("div", { class: "error-banner", text: `${exception.message} (${exception.code || "error"})` }));
+    } finally {
+      run.disabled = false;
+      cancel.disabled = true;
+    }
+  });
+  cancel.addEventListener("click", actions.cancel);
+  return el("section", { class: "tool-runner-page" },
+    el("div", { class: "page-head" },
+      el("div", {}, el("p", { class: "eyebrow", text: `Server: ${server.name}` }), el("h1", { text: tool.title || tool.name }), el("code", { text: `Tool: ${tool.name}` })),
+      el("a", { class: "secondary", href: `#/servers/${server.id}`, text: "Back to server" })),
+    el("p", { class: "subtitle", text: tool.description || "No description provided." }),
+    el("div", { class: "annotations" }, ...Object.entries(tool.annotations || {}).filter(([, value]) => value !== null).map(([key, value]) => el("span", { text: `${key}: ${value}` }))),
+    el("details", {}, el("summary", { text: "Input schema" }), el("pre", { class: "result-json", text: JSON.stringify(tool.inputSchema, null, 2) })),
+    el("section", { class: "runner" }, el("h2", { text: "Arguments" }), tabs, panels,
+      el("div", { class: "runbar" }, el("label", {}, "Timeout ", timeout, " seconds"), el("div", { class: "actions" }, run, cancel))),
+    result);
 }

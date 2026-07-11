@@ -66,7 +66,11 @@ if (bindingSecurity == BindingSecurityResult.RemoteUnprotected)
 app.UseMiddleware<ApiMiddleware>();
 app.UseMiddleware<SecurityMiddleware>();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+        context.Context.Response.Headers.CacheControl = "no-store, no-cache"
+});
 
 await app.Services.GetRequiredService<IServerDefinitionStore>()
     .InitializeAsync(app.Lifetime.ApplicationStopping);

@@ -1,0 +1,101 @@
+.compact-form {
+  max-width: 980px;
+}
+
+.compact-form .page-head {
+  margin-bottom: 10px;
+}
+
+.compact-form .page-head h1 {
+  font-size: 28px;
+}
+
+.compact-form .subtitle {
+  margin: 3px 0;
+}
+
+.compact-form .field {
+  gap: 3px;
+  margin: 7px 0;
+}
+
+.compact-form input,
+.compact-form select {
+  min-height: 36px;
+  padding: 6px 9px;
+}
+
+.compact-form textarea {
+  padding: 6px 9px;
+}
+
+.compact-form fieldset {
+  margin: 10px 0;
+  padding: 8px 14px 11px;
+}
+
+.compact-form .row {
+  margin: 6px 0;
+}
+
+.compact-form .row-heading {
+  margin-top: 3px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(180px, 1fr);
+  gap: 12px;
+}
+
+.form-grid-controls {
+  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 1fr) auto;
+  align-items: end;
+}
+
+.form-grid-controls .inline {
+  min-height: 36px;
+  margin-bottom: 7px;
+}
+
+.secret-help {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.compact-form .actions {
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .form-grid,
+  .form-grid-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid-controls .inline {
+    margin: 3px 0 7px;
+  }
+}
+
+.tool-runner-page { max-width: 980px; }
+.tool-runner-page .page-head { margin-bottom: 12px; }
+.tool-runner-page .page-head h1 { font-size: 28px; }
+.tool-runner-page > .subtitle,
+.tool-runner-page .annotations { margin: 8px 0; }
+.tool-runner-page .runner { margin-top: 14px; }
+.tool-runner-page .runner h2 { font-size: 20px; margin: 0 0 8px; }
+.tool-runner-page .schema-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.tool-runner-page .field { margin: 4px 0; gap: 2px; }
+.tool-runner-page .field input,
+.tool-runner-page .field select { min-height: 34px; padding: 5px 8px; }
+.tool-runner-page .field small { font-size: 12px; line-height: 1.3; }
+.tool-runner-page .tabs { margin-bottom: 6px; }
+.tool-runner-page .runbar { margin-top: 10px; }
+.tool-runner-page .runbar input { width: 90px; min-height: 34px; padding: 5px 8px; }
+.tool-runner-page .result { margin-top: 16px; }
+
+@media (max-width: 760px) {
+  .tool-runner-page .schema-form { grid-template-columns: 1fr; }
+}

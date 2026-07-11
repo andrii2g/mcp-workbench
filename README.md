@@ -25,7 +25,8 @@ dotnet restore McpWorkbench.slnx --locked-mode
 dotnet run --project src/McpWorkbench
 ```
 
-Open [http://127.0.0.1:5070](http://127.0.0.1:5070).
+Keep that terminal running, then open
+[http://127.0.0.1:5070](http://127.0.0.1:5070).
 
 For native executable, Docker, API-key, and first-server instructions, see the
 [Quick Start guide](docs/QUICKSTART.md).
@@ -44,5 +45,4 @@ For native executable, Docker, API-key, and first-server instructions, see the
 
 Examples are available in [samples/servers.example.json](samples/servers.example.json)
 and [requests/McpWorkbench.http](requests/McpWorkbench.http).
-
 

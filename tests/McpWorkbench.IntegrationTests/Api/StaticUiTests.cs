@@ -12,6 +12,7 @@ public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>
     [Theory]
     [InlineData("/", "text/html")]
     [InlineData("/app.css", "text/css")]
+    [InlineData("/compact-form.css", "text/css")]
     [InlineData("/app.js", "text/javascript")]
     [InlineData("/assets/mark.svg", "image/svg+xml")]
     public async Task StaticAsset_IsBundledAndServed(string path, string mediaType)
@@ -20,6 +21,7 @@ public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(mediaType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("no-store", response.Headers.CacheControl?.ToString());
     }
 
     [Fact]
@@ -52,5 +54,24 @@ public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Contains("id=\"api-key-dialog\"", html, StringComparison.Ordinal);
         Assert.Contains("sessionStorage", client, StringComparison.Ordinal);
         Assert.Contains("X-Mcp-Workbench-Key", client, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StartupScript_RendersExplicitFailureState()
+    {
+        var application = await _client.GetStringAsync("/app.js", TestContext.Current.CancellationToken);
+        var client = await _client.GetStringAsync("/api-client.js", TestContext.Current.CancellationToken);
+
+        Assert.Contains("MCP Workbench is unavailable", application, StringComparison.Ordinal);
+        Assert.Contains("start().catch", application, StringComparison.Ordinal);
+        Assert.Contains(".catch(() => false)", client, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ServerDetailsModule_ClosesNestedToolSectionExpression()
+    {
+        var module = await _client.GetStringAsync("/pages/server-details-page.js", TestContext.Current.CancellationToken);
+
+        Assert.Contains("onclick: actions.refresh })));", module, StringComparison.Ordinal);
     }
 }

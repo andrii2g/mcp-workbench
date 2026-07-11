@@ -19,7 +19,9 @@ dotnet restore McpWorkbench.slnx --locked-mode
 dotnet run --project src/McpWorkbench
 ```
 
-Open `http://127.0.0.1:5070`. The default registry is `data/servers.json`.
+Wait until the terminal reports `Now listening on: http://127.0.0.1:5070` and keep that
+terminal running. Then open `http://127.0.0.1:5070`. The default registry is
+`data/servers.json`.
 
 ## Run a native Windows build
 

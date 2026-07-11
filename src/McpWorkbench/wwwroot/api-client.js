@@ -16,7 +16,7 @@ async function request(path, options = {}, retry = true) {
   return payload.data;
 }
 export const api = {
-  health: () => fetch("/health/ready").then(r => r.ok),
+  health: () => fetch("/health/ready").then(r => r.ok).catch(() => false),
   servers: () => request("/servers?includeRuntime=true"),
   server: id => request(`/servers/${id}`),
   create: body => request("/servers", { method: "POST", body: JSON.stringify(body) }),

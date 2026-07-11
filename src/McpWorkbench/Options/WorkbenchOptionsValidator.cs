@@ -9,6 +9,8 @@ internal sealed class WorkbenchOptionsValidator : IValidateOptions<WorkbenchOpti
         var failures = new List<string>();
 
         RequireText(options.RegistryPath, nameof(options.RegistryPath), failures);
+        RequireText(options.SecretVaultPath, nameof(options.SecretVaultPath), failures);
+        RequireText(options.SecretKeyRingPath, nameof(options.SecretKeyRingPath), failures);
         RequirePositive(options.ConnectTimeoutSeconds, nameof(options.ConnectTimeoutSeconds), failures);
         RequirePositive(options.PingTimeoutSeconds, nameof(options.PingTimeoutSeconds), failures);
         RequirePositive(options.DefaultOperationTimeoutSeconds, nameof(options.DefaultOperationTimeoutSeconds), failures);

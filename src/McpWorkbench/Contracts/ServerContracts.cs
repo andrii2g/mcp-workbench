@@ -21,7 +21,8 @@ internal sealed record CreateServerRequest(
     McpTransportKind Transport,
     StdioTransportRequest? Stdio,
     HttpTransportRequest? Http,
-    int OperationTimeoutSeconds = 30);
+    int OperationTimeoutSeconds = 30,
+    IReadOnlyDictionary<string, string>? Secrets = null);
 
 internal sealed record UpdateServerRequest(
     string? Name,
@@ -30,4 +31,5 @@ internal sealed record UpdateServerRequest(
     McpTransportKind Transport,
     StdioTransportRequest? Stdio,
     HttpTransportRequest? Http,
-    int OperationTimeoutSeconds = 30);
+    int OperationTimeoutSeconds = 30,
+    IReadOnlyDictionary<string, string>? Secrets = null);

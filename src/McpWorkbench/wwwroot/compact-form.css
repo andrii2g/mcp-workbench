@@ -38,6 +38,23 @@
   margin: 6px 0;
 }
 
+.compact-form .secret-row {
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.5fr) auto 38px;
+  align-items: center;
+}
+
+.secret-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.compact-form .secret-toggle input {
+  width: auto;
+  min-height: auto;
+}
+
 .compact-form .row-heading {
   margin-top: 3px;
 }

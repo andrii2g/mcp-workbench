@@ -74,4 +74,14 @@ public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>
 
         Assert.Contains("onclick: actions.refresh })));", module, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task SchemaForm_HandlesNullableArrayTypes()
+    {
+        var module = await _client.GetStringAsync("/components/schema-form.js", TestContext.Current.CancellationToken);
+
+        Assert.Contains("Array.isArray(spec?.type)", module, StringComparison.Ordinal);
+        Assert.Contains("type !== \"null\"", module, StringComparison.Ordinal);
+        Assert.Contains("type === \"array\"", module, StringComparison.Ordinal);
+    }
 }

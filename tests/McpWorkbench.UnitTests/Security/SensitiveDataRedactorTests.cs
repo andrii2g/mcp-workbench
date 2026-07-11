@@ -27,6 +27,16 @@ public sealed class SensitiveDataRedactorTests
     }
 
     [Fact]
+    public void RedactValue_WhenValueContainsManagedReference_PreservesOpaqueReference()
+    {
+        var reference = $"${{SECRET:{Guid.NewGuid()}}}";
+
+        var result = SensitiveDataRedactor.RedactValue("Authorization", reference);
+
+        Assert.Equal(reference, result);
+    }
+
+    [Fact]
     public void RedactText_WhenTextContainsResolvedValues_ReplacesExactValuesLongestFirst()
     {
         IReadOnlySet<string> values = new HashSet<string>(["secret", "secret-long"], StringComparer.Ordinal);

@@ -121,7 +121,8 @@ internal static class ServerDefinitionValidator
                 normalized.Transport,
                 normalized.Stdio,
                 normalized.Http,
-                normalized.OperationTimeoutSeconds),
+                normalized.OperationTimeoutSeconds,
+                request.Secrets),
             createResult.Errors);
     }
 

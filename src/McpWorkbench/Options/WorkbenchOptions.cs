@@ -5,6 +5,8 @@ internal sealed class WorkbenchOptions
     public const string SectionName = "McpWorkbench";
 
     public string RegistryPath { get; set; } = "data/servers.json";
+    public string SecretVaultPath { get; set; } = "data/secrets.vault";
+    public string SecretKeyRingPath { get; set; } = "data/secret-keys";
     public bool BindToLoopbackOnly { get; set; } = true;
     public int ConnectTimeoutSeconds { get; set; } = 15;
     public int PingTimeoutSeconds { get; set; } = 5;

@@ -9,11 +9,19 @@ function field(label, input, hint) {
 function rowsEditor(title, values, keyLabel, valueLabel, placeholders = {}) {
   const root = el("div", { class: "rows" });
   const list = el("div");
+  const isSensitive = name => /authorization|api[-_]?key|token|password|secret|credential|cookie/i.test(name);
   const add = (key = "", value = "") => {
     const redacted = value === "[REDACTED]";
+    const managedReference = value.startsWith("${SECRET:") ? value : null;
     const keyInput = el("input", { value: key, placeholder: placeholders.key || "", "aria-label": keyLabel });
-    const valueInput = el("input", { value: redacted ? "" : value, placeholder: redacted ? "Re-enter required value" : placeholders.value || "", "aria-label": valueLabel, "data-redacted": redacted ? "true" : null });
-    const row = el("div", { class: "row" }, keyInput, valueInput, el("button", { type: "button", class: "icon-button", text: "x", title: "Remove row", "aria-label": "Remove row", onclick: () => row.remove() }));
+    const valueInput = el("input", { value: redacted || managedReference ? "" : value, placeholder: managedReference ? "Stored securely" : redacted ? "Enter a replacement secret" : placeholders.value || "", "aria-label": valueLabel, "data-redacted": redacted ? "true" : null, "data-secret-reference": managedReference });
+    const secretInput = el("input", { type: "checkbox", "aria-label": `${keyLabel} is secret` });
+    secretInput.checked = redacted || Boolean(managedReference) || isSensitive(key);
+    const updateSecretState = () => { valueInput.type = secretInput.checked ? "password" : "text"; };
+    keyInput.addEventListener("input", () => { if (!keyInput.dataset.secretEdited) { secretInput.checked = isSensitive(keyInput.value); updateSecretState(); } });
+    secretInput.addEventListener("change", () => { keyInput.dataset.secretEdited = "true"; updateSecretState(); });
+    updateSecretState();
+    const row = el("div", { class: "row secret-row" }, keyInput, valueInput, el("label", { class: "secret-toggle" }, secretInput, " Secret"), el("button", { type: "button", class: "icon-button", text: "x", title: "Remove row", "aria-label": "Remove row", onclick: () => row.remove() }));
     list.append(row);
   };
   for (const [key, value] of values) add(key, value);
@@ -21,7 +29,26 @@ function rowsEditor(title, values, keyLabel, valueLabel, placeholders = {}) {
   return {
     node: root,
     missingSecrets: () => [...list.querySelectorAll('input[data-redacted="true"]')].some(input => !input.value.trim()),
-    value: () => Object.fromEntries([...list.querySelectorAll(".row")].map(row => [...row.querySelectorAll("input")].map(input => input.value.trim())).filter(([key]) => key))
+    extract: () => {
+      const entries = {};
+      const secrets = {};
+      for (const row of list.querySelectorAll(".row")) {
+        const [keyInput, valueInput] = row.querySelectorAll('input:not([type="checkbox"])');
+        const key = keyInput.value.trim();
+        const value = valueInput.value.trim();
+        if (!key) continue;
+        if (!value && valueInput.dataset.secretReference) {
+          entries[key] = valueInput.dataset.secretReference;
+          continue;
+        }
+        if (row.querySelector('input[type="checkbox"]').checked && value && !value.includes("${ENV:") && !value.includes("${SECRET:")) {
+          const id = crypto.randomUUID();
+          entries[key] = "${SECRET:" + id + "}";
+          secrets[id] = value;
+        } else entries[key] = value;
+      }
+      return { entries, secrets };
+    }
   };
 }
 
@@ -61,7 +88,7 @@ export function serverEditPage(server, onSave) {
     el("div", { class: "form-grid form-grid-controls" }, field("Transport", transport), field("Operation timeout (seconds)", timeout), el("div", { class: "field inline" }, enabled, el("label", { for: enabledId, text: "Enabled" }))),
     stdio,
     http,
-    el("p", { class: "secret-help", text: isEdit ? "Secrets use ${ENV:NAME}. Redacted values must be entered again before saving." : "For secrets, enter ${ENV:NAME}; for example, Bearer ${ENV:MCP_ACCESS_TOKEN}." }),
+    el("p", { class: "secret-help", text: "Secret values are encrypted in the local vault. ${ENV:NAME} references remain supported." }),
     el("div", { class: "actions" }, el("button", { class: "primary", type: "submit", text: "Save" }), el("button", { class: "secondary", type: "submit", name: "connect", value: "true", text: "Save and connect" }), el("a", { class: "secondary", href: server ? `#/servers/${server.id}` : "#/servers", text: "Cancel" })));
   form.addEventListener("submit", async event => {
     event.preventDefault();
@@ -71,11 +98,13 @@ export function serverEditPage(server, onSave) {
       error.textContent = "Re-enter every redacted secret value before saving.";
       return;
     }
+    const selectedRows = transport.value === "stdio" ? env.extract() : headers.extract();
     const body = {
       name: name.value, description: description.value || null, enabled: enabled.checked, transport: transport.value,
-      stdio: transport.value === "stdio" ? { command: command.value, arguments: args.value.split(/\r?\n/).filter(Boolean), workingDirectory: workdir.value || null, environment: env.value(), shutdownTimeoutSeconds: Number(shutdown.value) } : null,
-      http: transport.value === "http" ? { endpoint: endpoint.value, mode: mode.value, headers: headers.value() } : null,
-      operationTimeoutSeconds: Number(timeout.value)
+      stdio: transport.value === "stdio" ? { command: command.value, arguments: args.value.split(/\r?\n/).filter(Boolean), workingDirectory: workdir.value || null, environment: selectedRows.entries, shutdownTimeoutSeconds: Number(shutdown.value) } : null,
+      http: transport.value === "http" ? { endpoint: endpoint.value, mode: mode.value, headers: selectedRows.entries } : null,
+      operationTimeoutSeconds: Number(timeout.value),
+      secrets: selectedRows.secrets
     };
     try {
       [...form.querySelectorAll("button")].forEach(button => button.disabled = true);

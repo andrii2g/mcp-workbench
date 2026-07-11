@@ -22,7 +22,7 @@ internal sealed record ResolvedTransportSettings(
     ResolvedHttpTransportSettings? Http,
     IReadOnlySet<string> SensitiveValues);
 
-internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider environment)
+internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider environment, ISecretStore? secrets = null)
 {
     public ResolvedTransportSettings Resolve(McpServerDefinition definition)
     {
@@ -49,7 +49,7 @@ internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider 
         ArgumentNullException.ThrowIfNull(sensitiveValues);
 
         var matches = SecretReferencePattern().Matches(value);
-        if (value.Contains("${ENV:", StringComparison.Ordinal) &&
+        if ((value.Contains("${ENV:", StringComparison.Ordinal) || value.Contains("${SECRET:", StringComparison.Ordinal)) &&
             (matches.Count == 0 || HasUnmatchedReferenceSyntax(value)))
         {
             throw new SecretReferenceException(
@@ -68,14 +68,19 @@ internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider 
         foreach (Match match in matches)
         {
             builder.Append(value, position, match.Index - position);
-            var variableName = match.Groups[1].Value;
-            var resolvedValue = environment.GetValue(variableName);
+            var source = match.Groups[1].Value;
+            var name = match.Groups[2].Value;
+            if (source == "ENV" && !EnvironmentNamePattern().IsMatch(name))
+                throw new SecretReferenceException("secret_reference_invalid", name, "Environment secret reference syntax is invalid.");
+            if (source == "SECRET" && !Guid.TryParse(name, out _))
+                throw new SecretReferenceException("secret_reference_invalid", string.Empty, "Stored secret reference syntax is invalid.");
+            var resolvedValue = source == "ENV" ? environment.GetValue(name) : secrets?.TryGet(name, out var stored) == true ? stored : null;
             if (resolvedValue is null)
             {
                 throw new SecretReferenceException(
                     "secret_reference_missing",
-                    variableName,
-                    $"Environment variable '{variableName}' is not available.");
+                    name,
+                    source == "ENV" ? $"Environment variable '{name}' is not available." : "Stored secret is not available.");
             }
 
             builder.Append(resolvedValue);
@@ -121,7 +126,8 @@ internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider 
     private static bool HasUnmatchedReferenceSyntax(string value)
     {
         var withoutMatches = SecretReferencePattern().Replace(value, string.Empty);
-        return withoutMatches.Contains("${ENV:", StringComparison.Ordinal);
+        return withoutMatches.Contains("${ENV:", StringComparison.Ordinal) ||
+            withoutMatches.Contains("${SECRET:", StringComparison.Ordinal);
     }
 
     private static string ExtractUnsafeVariableName(string value)
@@ -137,6 +143,9 @@ internal sealed partial class SecretReferenceResolver(IEnvironmentValueProvider 
         return end < 0 ? value[start..] : value[start..end];
     }
 
-    [GeneratedRegex(@"\$\{ENV:([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\$\{(ENV|SECRET):([A-Za-z0-9_-]+)\}", RegexOptions.CultureInvariant)]
     private static partial Regex SecretReferencePattern();
+
+    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex EnvironmentNamePattern();
 }

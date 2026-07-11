@@ -161,27 +161,17 @@ mcp-workbench/
 ├── .dockerignore
 ├── .editorconfig
 ├── .gitignore
-├── AGENTS.md
 ├── CHANGELOG.md
 ├── Directory.Build.props
 ├── Directory.Packages.props
 ├── Dockerfile
 ├── McpWorkbench.slnx
-├── PLAN.md
 ├── README.md
 ├── compose.yaml
 └── global.json
 ```
 
 ## Root files
-
-### `PLAN.md`
-
-Authoritative scope, phases, and definition of done. Codex updates status/checklists, not requirements, unless the user changes scope.
-
-### `AGENTS.md`
-
-Implementation behavior, security rules, AOT constraints, and reporting requirements for coding agents.
 
 ### `Directory.Build.props`
 

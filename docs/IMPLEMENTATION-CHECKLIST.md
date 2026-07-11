@@ -1,7 +1,7 @@
 # Implementation Checklist
 
-This checklist supplements `PLAN.md`. Codex marks an item complete only after code,
-tests, and documentation for that item are present.
+This historical checklist records the implementation phases. An item is complete
+only when its code, tests, and documentation are present.
 
 ## Phase 0 — Bootstrap
 
@@ -177,4 +177,4 @@ explicitly deferred to a later WSL validation pass.
 - [x] No real secret in repository or test artifacts.
 - [x] All repository text is UTF-8 without BOM.
 - [x] Working tree contains no tracked generated `bin`, `obj`, coverage, or publish output.
-- [x] `README.md`, `PLAN.md`, and implementation state agree, including documented deferrals.
+- [x] `README.md`, documentation, and implementation state agree, including documented deferrals.

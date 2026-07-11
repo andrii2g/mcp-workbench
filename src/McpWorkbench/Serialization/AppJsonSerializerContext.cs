@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using A2G.McpWorkbench.Contracts;
 using A2G.McpWorkbench.Domain;
 using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Security;
 using A2G.McpWorkbench.Validation;
 
 namespace A2G.McpWorkbench.Serialization;
@@ -20,6 +21,7 @@ internal sealed record HealthResponse(string Status);
 [JsonSerializable(typeof(ServerRuntimeSnapshot))]
 [JsonSerializable(typeof(ValidationError[]))]
 [JsonSerializable(typeof(RegistryDocument))]
+[JsonSerializable(typeof(SecretVaultDocument))]
 [JsonSerializable(typeof(McpSessionInfo))]
 [JsonSerializable(typeof(ToolCatalogEntry[]))]
 [JsonSerializable(typeof(ToolInvocationOutcome))]

@@ -5,6 +5,7 @@ using A2G.McpWorkbench.Persistence;
 using A2G.McpWorkbench.Security;
 using A2G.McpWorkbench.Serialization;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -31,7 +32,20 @@ builder.Services.AddOptions<SecurityOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IAtomicFileWriter, AtomicFileWriter>();
+var dataProtection = builder.Services.AddDataProtection()
+    .SetApplicationName("A2G.McpWorkbench")
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        builder.Configuration[$"{WorkbenchOptions.SectionName}:SecretKeyRingPath"] ?? "data/secret-keys"));
+if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
 builder.Services.AddSingleton<IEnvironmentValueProvider, ProcessEnvironmentValueProvider>();
+builder.Services.AddSingleton<ISecretStore>(services =>
+{
+    var options = services.GetRequiredService<IOptions<WorkbenchOptions>>().Value;
+    return new EncryptedFileSecretStore(
+        options.SecretVaultPath,
+        services.GetRequiredService<IDataProtectionProvider>(),
+        services.GetRequiredService<IAtomicFileWriter>());
+});
 builder.Services.AddSingleton<SecretReferenceResolver>();
 builder.Services.AddSingleton<IMcpClientSessionFactory, McpClientSessionFactory>();
 builder.Services.AddSingleton<IMcpConnectionManager, McpConnectionManager>();
@@ -62,6 +76,10 @@ if (bindingSecurity == BindingSecurityResult.RemoteUnprotected)
 {
     StartupLog.RemoteBindingWithoutApiKey(app.Logger);
 }
+if (!OperatingSystem.IsWindows())
+{
+    StartupLog.SecretKeyRingNotOsProtected(app.Logger);
+}
 
 app.UseMiddleware<ApiMiddleware>();
 app.UseMiddleware<SecurityMiddleware>();
@@ -73,6 +91,8 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 await app.Services.GetRequiredService<IServerDefinitionStore>()
+    .InitializeAsync(app.Lifetime.ApplicationStopping);
+await app.Services.GetRequiredService<ISecretStore>()
     .InitializeAsync(app.Lifetime.ApplicationStopping);
 
 app.MapGet("/health/live", static () => TypedResults.Ok(new HealthResponse("live")));
@@ -87,4 +107,7 @@ internal static partial class StartupLog
 {
     [LoggerMessage(EventId = 1001, Level = LogLevel.Warning, Message = "MCP Workbench is bound beyond loopback without API-key protection")]
     public static partial void RemoteBindingWithoutApiKey(ILogger logger);
+
+    [LoggerMessage(EventId = 1002, Level = LogLevel.Warning, Message = "Managed-secret key-ring files are not OS-protected on this platform; configure an external secret provider before production use")]
+    public static partial void SecretKeyRingNotOsProtected(ILogger logger);
 }

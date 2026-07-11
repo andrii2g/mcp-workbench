@@ -41,8 +41,6 @@ For native executable, Docker, API-key, and first-server instructions, see the
 - [Security](docs/SECURITY.md)
 - [Native AOT](docs/NATIVE-AOT.md)
 - [Testing](docs/TESTING.md)
-- [Project scope](PLAN.md)
 
 Examples are available in [samples/servers.example.json](samples/servers.example.json)
 and [requests/McpWorkbench.http](requests/McpWorkbench.http).
-

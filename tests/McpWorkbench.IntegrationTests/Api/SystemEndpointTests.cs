@@ -41,7 +41,9 @@ public sealed class SystemEndpointTests : IClassFixture<WebApplicationFactory<Pr
                 webHost.ConfigureAppConfiguration((_, configuration) =>
                     configuration.AddInMemoryCollection(new Dictionary<string, string?>
                     {
-                        ["McpWorkbench:RegistryPath"] = registryPath
+                        ["McpWorkbench:RegistryPath"] = registryPath,
+                        ["McpWorkbench:SecretVaultPath"] = Path.Combine(directory, "secrets.vault"),
+                        ["McpWorkbench:SecretKeyRingPath"] = Path.Combine(directory, "secret-keys")
                     })));
             using var client = application.CreateClient();
 

@@ -65,6 +65,15 @@ environment reference for credentials:
 Authorization = Bearer ${ENV:REMOTE_MCP_TOKEN}
 ```
 
+Alternatively, enable **Secret** beside a header or environment value and paste the
+credential directly. Workbench stores it in `data/secrets.vault`, encrypted with a
+Data Protection key protected by Windows DPAPI. `data/servers.json` stores only a
+`${SECRET:...}` reference. Back up `data/secrets.vault` and `data/secret-keys`
+together; the protected keys can only be used by the same Windows user.
+On Linux, the current file key ring is not protected by an OS credential service;
+use managed secrets there for testing only until a Linux or external-vault provider
+is configured.
+
 Set the referenced variable before starting MCP Workbench:
 
 ```powershell

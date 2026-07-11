@@ -5,6 +5,7 @@ using System.Text.Json;
 using A2G.McpWorkbench.Domain;
 using A2G.McpWorkbench.Mcp;
 using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,39 @@ namespace A2G.McpWorkbench.IntegrationTests.Api;
 
 public sealed class ApiEndpointTests
 {
+    [Fact]
+    public async Task CreateServer_WithManagedSecret_PersistsOnlyEncryptedValueAndReference()
+    {
+        using var application = new ApiApplication();
+        using var client = application.CreateClient();
+        var id = Guid.NewGuid().ToString();
+        const string secret = "managed-vault-sentinel";
+        var json = JsonSerializer.Serialize(new
+        {
+            name = "Secret API test",
+            enabled = true,
+            transport = "http",
+            http = new { endpoint = "https://example.test/mcp", mode = "auto", headers = new Dictionary<string, string> { ["Authorization"] = "${SECRET:" + id + "}" } },
+            operationTimeoutSeconds = 30,
+            secrets = new Dictionary<string, string> { [id] = secret }
+        });
+
+        using var response = await client.PostAsync("/api/v1/servers", Content(json), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.DoesNotContain(secret, await File.ReadAllTextAsync(application.RegistryPath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
+        Assert.Contains($"${{SECRET:{id}}}", await File.ReadAllTextAsync(application.RegistryPath, TestContext.Current.CancellationToken), StringComparison.Ordinal);
+        Assert.DoesNotContain(secret, Convert.ToBase64String(await File.ReadAllBytesAsync(application.VaultPath, TestContext.Current.CancellationToken)), StringComparison.Ordinal);
+        var secretStore = application.Services.GetRequiredService<ISecretStore>();
+        Assert.True(secretStore.TryGet(id, out _));
+        var serverId = (await Json(response)).RootElement.GetProperty("data").GetProperty("id").GetGuid();
+
+        using var deleted = await client.DeleteAsync($"/api/v1/servers/{serverId}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.False(secretStore.TryGet(id, out _));
+    }
+
     [Fact]
     public async Task Api_WhenRunningCompleteWorkflow_ReturnsStableContractsForEveryRoute()
     {
@@ -278,6 +312,8 @@ public sealed class ApiEndpointTests
     private sealed class ApiApplication : WebApplicationFactory<Program>
     {
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "mcp-workbench-api", Guid.NewGuid().ToString("N"));
+        public string RegistryPath => Path.Combine(_directory, "servers.json");
+        public string VaultPath => Path.Combine(_directory, "secrets.vault");
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -285,7 +321,9 @@ public sealed class ApiEndpointTests
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["McpWorkbench:RegistryPath"] = Path.Combine(_directory, "servers.json"),
+                    ["McpWorkbench:RegistryPath"] = RegistryPath,
+                    ["McpWorkbench:SecretVaultPath"] = VaultPath,
+                    ["McpWorkbench:SecretKeyRingPath"] = Path.Combine(_directory, "secret-keys"),
                     ["McpWorkbench:LoadToolsOnConnect"] = "false",
                     ["McpWorkbench:MaximumResultBytes"] = "1024"
                 }));

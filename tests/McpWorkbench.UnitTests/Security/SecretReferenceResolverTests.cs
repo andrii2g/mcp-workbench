@@ -91,6 +91,20 @@ public sealed class SecretReferenceResolverTests
         Assert.DoesNotContain("sentinel-secret", persistedJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ResolveValue_WhenStoredSecretExists_ResolvesIt()
+    {
+        var id = Guid.NewGuid().ToString();
+        var store = new DictionarySecretStore(new Dictionary<string, string> { [id] = "stored-sentinel" });
+        var resolver = new SecretReferenceResolver(new DictionaryEnvironmentValueProvider([]), store);
+        var sensitive = new HashSet<string>();
+
+        var result = resolver.ResolveValue($"Bearer ${{SECRET:{id}}}", sensitive);
+
+        Assert.Equal("Bearer stored-sentinel", result);
+        Assert.Contains("stored-sentinel", sensitive);
+    }
+
     private static SecretReferenceResolver Resolver(params (string Name, string Value)[] values) =>
         new(new DictionaryEnvironmentValueProvider(values));
 
@@ -129,5 +143,13 @@ public sealed class SecretReferenceResolverTests
             StringComparer.Ordinal);
 
         public string? GetValue(string name) => _values.GetValueOrDefault(name);
+    }
+
+    private sealed class DictionarySecretStore(IReadOnlyDictionary<string, string> values) : ISecretStore
+    {
+        public ValueTask InitializeAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask SetAsync(string id, string value, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public bool TryGet(string id, out string value) => values.TryGetValue(id, out value!);
+        public ValueTask DeleteAsync(string id, CancellationToken cancellationToken) => ValueTask.CompletedTask;
     }
 }

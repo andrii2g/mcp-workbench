@@ -24,6 +24,8 @@ Suggested `appsettings.json`:
 {
   "McpWorkbench": {
     "RegistryPath": "data/servers.json",
+    "SecretVaultPath": "data/secrets.vault",
+    "SecretKeyRingPath": "data/secret-keys",
     "BindToLoopbackOnly": true,
     "ConnectTimeoutSeconds": 15,
     "PingTimeoutSeconds": 5,
@@ -58,6 +60,8 @@ Suggested `appsettings.json`:
 | Option | Meaning |
 |---|---|
 | `RegistryPath` | JSON registry file. Parent directory is created on startup. |
+| `SecretVaultPath` | Encrypted managed-secret file. |
+| `SecretKeyRingPath` | Data Protection key ring; Windows protects keys with current-user DPAPI. |
 | `BindToLoopbackOnly` | Enforces loopback URLs unless explicitly disabled. |
 | `ConnectTimeoutSeconds` | Overall initialize/connect limit. |
 | `PingTimeoutSeconds` | MCP ping limit. |

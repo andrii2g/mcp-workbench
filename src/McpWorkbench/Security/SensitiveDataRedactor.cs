@@ -21,6 +21,11 @@ internal static class SensitiveDataRedactor
 
     public static string RedactValue(string key, string value, IReadOnlySet<string>? sensitiveValues = null)
     {
+        if (value.Contains("${SECRET:", StringComparison.Ordinal))
+        {
+            return value;
+        }
+
         if (SensitiveKeys.Contains(key) || value.Contains("${ENV:", StringComparison.Ordinal))
         {
             return RedactedValue;

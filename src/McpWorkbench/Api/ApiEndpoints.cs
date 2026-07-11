@@ -63,6 +63,7 @@ internal static class ApiEndpoints
     private static async Task<IResult> CreateServerAsync(
         CreateServerRequest request,
         IServerDefinitionStore store,
+        ISecretStore secretStore,
         IOptions<WorkbenchOptions> options,
         HttpContext context,
         TimeProvider timeProvider,
@@ -76,9 +77,19 @@ internal static class ApiEndpoints
         var policyErrors = ValidatePolicy(validation.Value!, options.Value);
         if (policyErrors.Count > 0) return ValidationFailure(context, timeProvider, policyErrors);
 
-        var now = timeProvider.GetUtcNow();
-        var definition = MapDefinition(Guid.NewGuid(), validation.Value!, now, now);
-        var created = await store.CreateAsync(definition, cancellationToken);
+        var storedIds = await StoreSecretsAsync(request.Secrets, secretStore, cancellationToken);
+        McpServerDefinition created;
+        try
+        {
+            var now = timeProvider.GetUtcNow();
+            var definition = MapDefinition(Guid.NewGuid(), validation.Value!, now, now);
+            created = await store.CreateAsync(definition, cancellationToken);
+        }
+        catch
+        {
+            await DeleteSecretsAsync(storedIds, secretStore, cancellationToken);
+            throw;
+        }
         var response = Success(context, timeProvider, MapServer(created, null));
         return Results.Created($"/api/v1/servers/{created.Id}", response);
     }
@@ -101,6 +112,7 @@ internal static class ApiEndpoints
         UpdateServerRequest request,
         IServerDefinitionStore store,
         IMcpConnectionManager manager,
+        ISecretStore secretStore,
         IOptions<WorkbenchOptions> options,
         HttpContext context,
         TimeProvider timeProvider,
@@ -115,18 +127,36 @@ internal static class ApiEndpoints
         if (policyErrors.Count > 0) return ValidationFailure(context, timeProvider, policyErrors);
 
         var current = await RequiredDefinitionAsync(store, serverId, cancellationToken);
-        var definition = MapDefinition(serverId, validation.Value!, current.CreatedAtUtc, timeProvider.GetUtcNow());
-        var updated = await manager.ReplaceDefinitionAsync(definition, cancellationToken);
+        var oldSecretIds = SecretIds(current);
+        var storedIds = await StoreSecretsAsync(request.Secrets, secretStore, cancellationToken);
+        McpServerDefinition updated;
+        try
+        {
+            var definition = MapDefinition(serverId, validation.Value!, current.CreatedAtUtc, timeProvider.GetUtcNow());
+            updated = await manager.ReplaceDefinitionAsync(definition, cancellationToken);
+        }
+        catch
+        {
+            await DeleteSecretsAsync(storedIds, secretStore, cancellationToken);
+            throw;
+        }
+        await DeleteSecretsAsync(oldSecretIds.Except(SecretIds(updated), StringComparer.Ordinal), secretStore, cancellationToken);
         return Results.Ok(Success(context, timeProvider, MapServer(updated, await manager.GetRuntimeAsync(serverId, cancellationToken))));
     }
 
     private static async Task<IResult> DeleteServerAsync(
         Guid serverId,
         IMcpConnectionManager manager,
-        CancellationToken cancellationToken) =>
-        await manager.DeleteDefinitionAsync(serverId, cancellationToken)
-            ? Results.NoContent()
-            : throw new McpSessionException("server_not_found", "The MCP server was not found.");
+        IServerDefinitionStore store,
+        ISecretStore secretStore,
+        CancellationToken cancellationToken)
+    {
+        var definition = await RequiredDefinitionAsync(store, serverId, cancellationToken);
+        if (!await manager.DeleteDefinitionAsync(serverId, cancellationToken))
+            throw new McpSessionException("server_not_found", "The MCP server was not found.");
+        await DeleteSecretsAsync(SecretIds(definition), secretStore, cancellationToken);
+        return Results.NoContent();
+    }
 
     private static async Task<IResult> ConnectAsync(
         Guid serverId,
@@ -400,4 +430,59 @@ internal static class ApiEndpoints
         definition.CreatedAtUtc,
         definition.UpdatedAtUtc,
         runtime);
+
+    private static async ValueTask<string[]> StoreSecretsAsync(
+        IReadOnlyDictionary<string, string>? values,
+        ISecretStore store,
+        CancellationToken cancellationToken)
+    {
+        if (values is null) return [];
+        var stored = new List<string>(values.Count);
+        try
+        {
+            foreach (var pair in values)
+            {
+                if (!Guid.TryParse(pair.Key, out _) || string.IsNullOrEmpty(pair.Value) || pair.Value.Length > 8192)
+                    throw new McpSessionException("secret_invalid", "A submitted secret is invalid.");
+                if (store.TryGet(pair.Key, out _))
+                    throw new McpSessionException("secret_conflict", "A submitted secret identifier already exists.");
+                await store.SetAsync(pair.Key, pair.Value, cancellationToken);
+                stored.Add(pair.Key);
+            }
+            return stored.ToArray();
+        }
+        catch
+        {
+            await DeleteSecretsAsync(stored, store, cancellationToken);
+            throw;
+        }
+    }
+
+    private static HashSet<string> SecretIds(McpServerDefinition definition)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        IEnumerable<string> values = definition.Transport == McpTransportKind.Http
+            ? definition.Http?.Headers.Values ?? []
+            : definition.Stdio?.Environment.Values ?? [];
+        foreach (var value in values)
+        {
+            var start = 0;
+            while ((start = value.IndexOf("${SECRET:", start, StringComparison.Ordinal)) >= 0)
+            {
+                var end = value.IndexOf('}', start);
+                if (end < 0) break;
+                ids.Add(value[(start + 9)..end]);
+                start = end + 1;
+            }
+        }
+        return ids;
+    }
+
+    private static async ValueTask DeleteSecretsAsync(
+        IEnumerable<string> ids,
+        ISecretStore store,
+        CancellationToken cancellationToken)
+    {
+        foreach (var id in ids) await store.DeleteAsync(id, cancellationToken);
+    }
 }

@@ -1,23 +1,15 @@
 # Changelog
 
-All notable project changes will be documented here.
+All notable project changes are documented here. The project follows semantic versioning
+after its first public release.
 
-The project follows semantic versioning after the first public release.
+## 2026-07-11
 
-## [Unreleased]
-
-### Planning
-
-- Defined version 0.1.0 scope for an MCP server management and tool-testing workbench.
-- Selected .NET 10, ASP.NET Core Minimal APIs, Native AOT, and a static JavaScript UI.
-- Selected stable official MCP C# SDK integration behind an application-owned adapter.
-- Defined stdio and HTTP transports, JSON registry persistence, tool discovery, and tool
-  invocation.
-- Added security, Native AOT, API, testing, UI, and repository structure specifications.
-
-### Not yet implemented
-
-- Application source code.
-- Test projects.
-- Build and release workflows.
-- Container image.
+- ASP.NET Core 10 Minimal API and dependency-free browser UI.
+- Versioned JSON registry with atomic persistence and secret references.
+- Stdio and HTTP MCP connection lifecycle, discovery, ping, and tool invocation.
+- Bounded execution history, result rendering, validation, and stable API errors.
+- API-key protection, loopback enforcement, allowlists, security headers, and threat review.
+- Unit and integration tests using a deterministic MCP test server.
+- Windows Native AOT publish, native process smoke tests, checksums, and packaging scripts.
+- Non-root Native AOT Dockerfile, Compose definition, CI, and release workflow.

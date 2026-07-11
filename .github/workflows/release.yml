@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            shell: pwsh
+          - os: ubuntu-latest
+            rid: linux-x64
+            shell: bash
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/publish-aot.ps1 -RuntimeIdentifiers ${{ matrix.rid }}
+      - if: runner.os == 'Linux'
+        shell: bash
+        run: sh scripts/publish-aot.sh ${{ matrix.rid }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp-workbench-${{ matrix.rid }}
+          path: artifacts/${{ matrix.rid }}/
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: |
+          find artifacts -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --generate-notes SHA256SUMS $(find artifacts -type f)
+        env:
+          GH_TOKEN: ${{ github.token }}

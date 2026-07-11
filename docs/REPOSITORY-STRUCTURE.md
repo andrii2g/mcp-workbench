@@ -36,9 +36,7 @@ mcp-workbench/
 │   ├── publish-aot.ps1
 │   ├── publish-aot.sh
 │   ├── test.ps1
-│   ├── test.sh
-│   ├── verify-utf8-no-bom.ps1
-│   └── verify-utf8-no-bom.sh
+│   └── test.sh
 ├── src/
 │   └── McpWorkbench/
 │       ├── Api/

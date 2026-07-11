@@ -4,9 +4,14 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$lockDirectory = Join-Path ([System.IO.Path]::GetFullPath($OutputRoot)) 'locks'
+New-Item $lockDirectory -ItemType Directory -Force | Out-Null
 
 foreach ($rid in $RuntimeIdentifiers) {
     $output = Join-Path $OutputRoot $rid
+    $lockFile = Join-Path $lockDirectory "$rid.packages.lock.json"
+    dotnet restore src/McpWorkbench/McpWorkbench.csproj -r $rid -p:NuGetLockFilePath=$lockFile --force-evaluate
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     dotnet publish src/McpWorkbench/McpWorkbench.csproj `
         -c Release -r $rid --self-contained true --no-restore `
         -p:PublishAot=true -o $output

@@ -1,143 +1,156 @@
 # MCP Workbench
 
-MCP Workbench is a lightweight, self-hosted dashboard for registering Model Context Protocol servers, inspecting their capabilities and tools, and executing tool calls manually.
+MCP Workbench is a small self-hosted dashboard for registering Model Context Protocol
+servers, inspecting their tools, and invoking tools without an LLM or model-provider
+account. It supports local stdio servers and remote Streamable HTTP or legacy SSE
+servers through the official MCP C# SDK.
 
-It is designed as a Postman-like utility for MCP development and troubleshooting. It does not require an LLM or model-provider account.
+## Requirements
 
-> This planning pack is Codex-ready. Follow `PLAN.md` and `AGENTS.md` to build version 0.1.0.
-
-## Planned features
-
-- Add, edit, and remove MCP server definitions.
-- Connect to local MCP servers over stdio.
-- Connect to remote MCP servers over Streamable HTTP, with legacy compatibility handled by the SDK.
-- Ping servers and inspect negotiated metadata.
-- Discover and refresh tool catalogs.
-- Inspect tool descriptions, annotations, and JSON schemas.
-- Invoke tools with raw JSON arguments.
-- Render text, structured content, known content blocks, and raw results.
-- Store definitions in one local JSON file.
-- Resolve `${ENV:NAME}` secret references at connection time.
-- Run as a small .NET 10 Native AOT executable.
-- Use a dependency-free static browser UI.
-
-## Planned architecture
-
-```text
-Browser
-   |
-   | HTTP/JSON
-   v
-ASP.NET Core 10 Minimal API + static UI
-   |
-   +-- JSON server-definition registry
-   |
-   +-- in-memory MCP connection manager
-          |
-          +-- stdio child-process MCP servers
-          +-- remote HTTP MCP servers
-```
-
-## Requirements after implementation
-
-- .NET 10 SDK for development
-- Native AOT compiler toolchain for the selected runtime
+- .NET 10 SDK for source builds
 - A browser
-- Optional external runtimes used by configured MCP servers
+- The runtime required by each configured stdio MCP server
+- A Native AOT toolchain when producing native releases
 
-MCP Workbench itself will not require Node.js.
+MCP Workbench itself has no Node.js build or runtime dependency.
 
-## Target quick start
+## Run locally
 
-```bash
-dotnet restore
+```powershell
+dotnet restore McpWorkbench.slnx --locked-mode
 dotnet run --project src/McpWorkbench
 ```
 
-Open:
+Open `http://127.0.0.1:5070`. Definitions are stored in `data/servers.json` by default.
 
-```text
-http://127.0.0.1:5070
+Run the Windows verification suite:
+
+```powershell
+./scripts/build.ps1
+./scripts/test.ps1
+./scripts/publish-aot.ps1 -RuntimeIdentifiers win-x64
+./scripts/aot-smoke.ps1
 ```
 
-Native AOT publish:
+The equivalent `.sh` scripts are provided for Linux. Linux Native AOT and container
+execution remain scheduled for WSL validation.
 
-```bash
-dotnet publish src/McpWorkbench/McpWorkbench.csproj \
-  -c Release \
-  -r linux-x64 \
-  --self-contained true
-```
+## Register servers
 
-## Example stdio definition
+Create a stdio definition through the UI or `POST /api/v1/servers`:
 
 ```json
 {
-  "name": "Filesystem server",
+  "name": "Local MCP server",
+  "enabled": true,
   "transport": "stdio",
   "stdio": {
-    "command": "npx",
-    "arguments": [
-      "-y",
-      "@modelcontextprotocol/server-filesystem",
-      "/workspace"
-    ],
+    "command": "dotnet",
+    "arguments": ["./path/to/server.dll"],
     "workingDirectory": null,
-    "environment": {},
+    "environment": { "SERVICE_TOKEN": "${ENV:SERVICE_TOKEN}" },
     "shutdownTimeoutSeconds": 5
-  }
+  },
+  "http": null,
+  "operationTimeoutSeconds": 30
 }
 ```
 
-## Example HTTP definition
+Create an HTTP definition:
 
 ```json
 {
-  "name": "Remote MCP",
+  "name": "Remote MCP server",
+  "enabled": true,
   "transport": "http",
+  "stdio": null,
   "http": {
-    "endpoint": "https://example.test/mcp",
-    "headers": {
-      "Authorization": "Bearer ${ENV:MCP_API_TOKEN}"
-    }
-  }
+    "endpoint": "https://mcp.example.test/mcp",
+    "mode": "auto",
+    "headers": { "Authorization": "Bearer ${ENV:REMOTE_MCP_TOKEN}" }
+  },
+  "operationTimeoutSeconds": 30
 }
 ```
 
-## Security model
+See [servers.example.json](samples/servers.example.json) for a complete registry and
+[McpWorkbench.http](requests/McpWorkbench.http) for API requests covering registration,
+connection, discovery, invocation, and deletion.
 
-MCP Workbench is intended for trusted developer environments. Registering a stdio server grants the application permission to start that executable. A remote endpoint can reach network resources accessible from the host. Tool calls can perform any action implemented by the selected MCP server.
+## Configuration
 
-The service will therefore:
+ASP.NET Core configuration sources are supported. Environment-variable keys use double
+underscores:
 
-- bind to loopback by default;
-- avoid shell execution;
-- support optional API-key protection;
-- resolve secrets from environment variables;
-- redact sensitive values from logs;
-- escape all MCP-provided UI content;
-- document that the default configuration is not an internet-facing security boundary.
+```powershell
+$env:McpWorkbench__RegistryPath = "C:\data\mcp-workbench\servers.json"
+$env:Security__ApiKey = "replace-with-a-secret"
+dotnet run --project src/McpWorkbench
+```
 
-Read `docs/SECURITY.md` before exposing it beyond localhost.
+The application binds to loopback by default. Before allowing remote binding:
 
-## Planning documents
+- set `McpWorkbench__BindToLoopbackOnly=false` intentionally;
+- configure `Security__ApiKey` and network-level access controls;
+- restrict `AllowedStdioCommands` and `AllowedHttpHosts` where possible;
+- protect the registry file and secret-providing environment;
+- treat every configured stdio executable and HTTP endpoint as trusted code.
 
-- `PLAN.md` — scope, phases, requirements, and definition of done.
-- `AGENTS.md` — strict Codex instructions.
-- `docs/REPOSITORY-STRUCTURE.md` — exact target file tree.
-- `docs/ARCHITECTURE.md` — runtime design and workflows.
-- `docs/API.md` — endpoint contracts.
-- `docs/CONFIGURATION.md` — application and registry configuration.
-- `docs/DOMAIN-MODEL.md` — persisted and runtime models.
-- `docs/MCP-INTEGRATION.md` — SDK boundary and MCP behavior.
-- `docs/NATIVE-AOT.md` — AOT requirements.
-- `docs/SECURITY.md` — threat model and safeguards.
-- `docs/TESTING.md` — test strategy and detailed cases.
-- `docs/UI-SPEC.md` — static browser UI specification.
-- `docs/DECISIONS.md` — architecture decisions.
-- `docs/IMPLEMENTATION-CHECKLIST.md` — phase checklist.
-- `docs/REFERENCES.md` — official specification, SDK, .NET, and security references.
+Do not expose the default configuration directly to an untrusted network. The API key is
+a shared secret, not a multi-user authentication or authorization system.
+
+## Container
+
+`Dockerfile` and `compose.yaml` provide a non-root Alpine Native AOT deployment with a
+persistent `/app/data` volume. Stdio commands must exist inside the container or a mounted
+volume; host-installed commands are not automatically available.
+
+```bash
+MCP_WORKBENCH_API_KEY=replace-with-a-secret docker compose up --build
+```
+
+Container execution is currently deferred to the Linux/WSL validation pass.
+
+## Troubleshooting
+
+**The application rejects its bind address**
+
+Remote URLs are rejected while `BindToLoopbackOnly` is enabled. Prefer loopback or disable
+the guard explicitly and configure an API key.
+
+**A stdio server does not start**
+
+Confirm the executable is installed, permitted by `AllowedStdioCommands`, and reachable
+under the Workbench process identity. Arguments are passed directly without a shell.
+
+**A connection reports an unresolved secret**
+
+Set every environment variable referenced by `${ENV:NAME}` before connecting. References
+are resolved at connection time and their values are not persisted.
+
+**The registry fails during startup**
+
+Inspect the configured JSON file for malformed data, duplicate names/IDs, or an unsupported
+schema version. Workbench deliberately does not overwrite a corrupt registry.
+
+**Native publish fails on another operating system**
+
+Native AOT does not support cross-OS compilation. Run the matching publish script on the
+target OS with its native compiler toolchain installed.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [API contract](docs/API.md)
+- [Configuration and persistence](docs/CONFIGURATION.md)
+- [MCP integration](docs/MCP-INTEGRATION.md)
+- [Native AOT](docs/NATIVE-AOT.md)
+- [Security](docs/SECURITY.md) and [threat review](docs/THREAT-REVIEW.md)
+- [Testing](docs/TESTING.md)
+- [Implementation status](docs/IMPLEMENTATION-CHECKLIST.md)
+- [Project scope](PLAN.md) and [architecture decisions](docs/DECISIONS.md)
 
 ## License
 
-No license has been selected in this planning pack. Add one before public distribution.
+No license has been selected. Repository visibility does not grant permission to copy,
+modify, or redistribute the project.

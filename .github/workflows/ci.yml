@@ -21,6 +21,6 @@ jobs:
       - run: dotnet restore McpWorkbench.slnx --locked-mode
       - run: dotnet format McpWorkbench.slnx --verify-no-changes --no-restore
       - run: dotnet build McpWorkbench.slnx -c Release --no-restore
-      - run: dotnet test McpWorkbench.slnx -c Release --no-build
+      - run: dotnet test McpWorkbench.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
       - run: sh scripts/publish-aot.sh linux-x64
       - run: sh scripts/aot-smoke.sh artifacts/linux-x64/mcp-workbench

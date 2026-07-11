@@ -68,6 +68,26 @@ public sealed class JsonServerDefinitionStoreTests
     }
 
     [Fact]
+    public async Task Mutations_WhenIdentifierConflictsOrIsMissing_ReturnStableOutcomes()
+    {
+        using var directory = new TestDirectory();
+        using var store = CreateStore(directory.RegistryPath);
+        var definition = Definition("Demo");
+        await store.CreateAsync(definition, TestContext.Current.CancellationToken);
+
+        var duplicate = await Assert.ThrowsAsync<RegistryException>(async () =>
+            await store.CreateAsync(definition with { Name = "Other" }, TestContext.Current.CancellationToken));
+        var missing = await Assert.ThrowsAsync<RegistryException>(async () =>
+            await store.ReplaceAsync(Definition("Missing"), TestContext.Current.CancellationToken));
+        var deleted = await store.DeleteAsync(Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        Assert.Equal("server_id_conflict", duplicate.Code);
+        Assert.Equal("server_not_found", missing.Code);
+        Assert.False(deleted);
+        Assert.Equal(1, (await store.GetSnapshotAsync(TestContext.Current.CancellationToken)).Revision);
+    }
+
+    [Fact]
     public async Task InitializeAsync_WhenJsonIsMalformed_DoesNotOverwriteFile()
     {
         using var directory = new TestDirectory();

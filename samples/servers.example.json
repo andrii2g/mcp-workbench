@@ -12,7 +12,7 @@
       "stdio": {
         "command": "dotnet",
         "arguments": [
-          "./tests/McpWorkbench.TestServer/bin/Debug/net10.0/McpWorkbench.TestServer.dll"
+          "./tests/McpWorkbench.TestServer/bin/Release/net10.0/McpWorkbench.TestServer.dll"
         ],
         "workingDirectory": null,
         "environment": {},

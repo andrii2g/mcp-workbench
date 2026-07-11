@@ -139,39 +139,42 @@ tests, and documentation for that item are present.
 
 ## Phase 10 — AOT and packaging
 
-- [ ] Publish `linux-x64`.
-- [ ] Publish `linux-arm64`.
+Status: complete for the user-approved Windows scope. Linux and container execution are
+explicitly deferred to a later WSL validation pass.
+
+- [x] Defer `linux-x64` publish and smoke validation to WSL (user-approved).
+- [x] Defer `linux-arm64` publish and smoke validation to WSL (user-approved).
 - [x] Publish `win-x64`.
-- [x] Resolve every trim/AOT warning on Windows; Linux verification remains pending.
+- [x] Resolve every trim/AOT warning on Windows; defer Linux warning verification to WSL.
 - [x] Run the published `win-x64` executable smoke test.
-- [ ] Build minimal container image.
-- [ ] Run container with persistent registry volume.
-- [ ] Verify non-root container operation where supported.
+- [x] Add a minimal non-root container image; defer its Linux build to WSL.
+- [x] Defer container persistent-volume execution to WSL (user-approved).
+- [x] Defer non-root container runtime verification to WSL (user-approved).
 - [x] Generate checksums for release artifacts.
 
 ## Phase 11 — Documentation and samples
 
-- [ ] Replace planning README with product README while preserving architecture links.
-- [ ] Add local run instructions.
-- [ ] Add stdio and HTTP registration examples.
-- [ ] Add security/deployment warnings.
-- [ ] Add troubleshooting guidance.
-- [ ] Add sample registry without secrets.
-- [ ] Add API request collection.
-- [ ] Add repository topics and description.
-- [ ] Add release/change log entry.
+- [x] Replace planning README with product README while preserving architecture links.
+- [x] Add local run instructions.
+- [x] Add stdio and HTTP registration examples.
+- [x] Add security/deployment warnings.
+- [x] Add troubleshooting guidance.
+- [x] Add sample registry without secrets.
+- [x] Add API request collection.
+- [x] Add repository topics and description.
+- [x] Add release/change log entry.
 
 ## Final acceptance
 
 - [ ] All FR-001 through FR-047 are implemented or explicitly marked deferred with user
       approval.
 - [ ] All NFR-001 through NFR-010 pass.
-- [ ] Normal tests pass.
-- [ ] Coverage thresholds pass.
+- [x] Normal tests pass.
+- [x] Coverage thresholds pass for domain, validation, persistence, and security utilities.
 - [ ] Native AOT builds and smoke tests pass for required RIDs.
-- [ ] No preview dependencies.
-- [ ] No unresolved compiler, analyzer, trim, or AOT warnings.
-- [ ] No real secret in repository or test artifacts.
-- [ ] All repository text is UTF-8 without BOM.
-- [ ] Working tree contains no generated `bin`, `obj`, coverage, or publish output.
-- [ ] `README.md`, `PLAN.md`, and implementation state agree.
+- [x] No preview dependencies.
+- [x] No unresolved compiler, analyzer, trim, or AOT warnings on the verified Windows path.
+- [x] No real secret in repository or test artifacts.
+- [x] All repository text is UTF-8 without BOM.
+- [x] Working tree contains no tracked generated `bin`, `obj`, coverage, or publish output.
+- [x] `README.md`, `PLAN.md`, and implementation state agree, including documented deferrals.

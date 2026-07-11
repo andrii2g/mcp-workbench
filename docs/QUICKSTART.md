@@ -15,7 +15,7 @@ Clone and start the service:
 ```powershell
 git clone https://github.com/andrii2g/mcp-workbench.git
 cd mcp-workbench
-dotnet restore McpWorkbench.slnx --locked-mode
+dotnet restore McpWorkbench.slnx --force-evaluate
 dotnet run --project src/McpWorkbench
 ```
 

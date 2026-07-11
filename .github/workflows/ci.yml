@@ -12,13 +12,15 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
           cache: true
           cache-dependency-path: '**/packages.lock.json'
-      - run: dotnet restore McpWorkbench.slnx --locked-mode
+      # PublishAot makes the production restore graph host-RID-specific. Refresh the
+      # host graph here; publish-aot.sh creates a separate lock for each release RID.
+      - run: dotnet restore McpWorkbench.slnx --force-evaluate
       - run: dotnet format McpWorkbench.slnx --verify-no-changes --no-restore
       - run: dotnet build McpWorkbench.slnx -c Release --no-restore
       - run: dotnet test McpWorkbench.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults

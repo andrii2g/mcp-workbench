@@ -4,8 +4,8 @@ using A2G.McpWorkbench.Options;
 using A2G.McpWorkbench.Persistence;
 using A2G.McpWorkbench.Security;
 using A2G.McpWorkbench.Serialization;
-using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 

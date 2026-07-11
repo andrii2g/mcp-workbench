@@ -21,7 +21,7 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 ```powershell
 git clone https://github.com/andrii2g/mcp-workbench.git
 cd mcp-workbench
-dotnet restore McpWorkbench.slnx --locked-mode
+dotnet restore McpWorkbench.slnx --force-evaluate
 dotnet run --project src/McpWorkbench
 ```
 

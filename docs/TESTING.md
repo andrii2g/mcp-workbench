@@ -288,7 +288,7 @@ Use readiness polling and deterministic signals.
 ## CI commands
 
 ```bash
-dotnet restore --locked-mode
+dotnet restore --force-evaluate
 dotnet build -c Release --no-restore
 dotnet test -c Release --no-build \
   --collect:"XPlat Code Coverage"

@@ -149,7 +149,6 @@ export function serverEditPage(server, onSave) {
     el("div", { class: "form-grid form-grid-controls" }, field("Transport", transport), field("Operation timeout (seconds)", timeout), el("div", { class: "field inline" }, enabled, el("label", { for: enabledId, text: "Enabled" }))),
     stdio,
     http,
-    el("p", { class: "secret-help", text: "Secret values are encrypted in the local vault. ${ENV:NAME} references remain supported." }),
     el("div", { class: "actions" }, el("button", { class: "primary", type: "submit", text: "Save" }), el("button", { class: "secondary", type: "submit", name: "connect", value: "true", text: "Save and connect" }), el("a", { class: "secondary", href: server ? `#/servers/${server.id}` : "#/servers", text: "Cancel" })));
   form.addEventListener("submit", async event => {
     event.preventDefault();

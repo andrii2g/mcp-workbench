@@ -247,7 +247,22 @@ internal static class ApiEndpoints
             completed,
             Math.Max(0, (long)(completed - started).TotalMilliseconds),
             outcome.IsError,
-            outcome.Content,
+            outcome.Content.Select(block => new McpContentBlockResponse(
+                block.Kind switch
+                {
+                    McpContentKind.Text => "text",
+                    McpContentKind.Image => "image",
+                    McpContentKind.EmbeddedResource => "embeddedResource",
+                    McpContentKind.ResourceLink => "resourceLink",
+                    _ => "unknown"
+                },
+                block.Text,
+                block.DataBase64,
+                block.MimeType,
+                block.Uri,
+                block.Name,
+                block.Size,
+                block.Raw)).ToArray(),
             outcome.StructuredContent,
             outcome.RawResult,
             outcome.WasTruncated);

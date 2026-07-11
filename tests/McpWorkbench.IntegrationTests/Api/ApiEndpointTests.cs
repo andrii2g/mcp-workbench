@@ -184,6 +184,8 @@ public sealed class ApiEndpointTests
         Assert.Equal(HttpStatusCode.OK, invoked.StatusCode);
         Assert.False(invokedJson.RootElement.GetProperty("data").GetProperty("isError").GetBoolean());
         Assert.Equal("hello", invokedJson.RootElement.GetProperty("data").GetProperty("content")[0].GetProperty("text").GetString());
+        Assert.Equal("text", invokedJson.RootElement.GetProperty("data").GetProperty("content")[0].GetProperty("type").GetString());
+        Assert.False(invokedJson.RootElement.GetProperty("data").GetProperty("content")[0].TryGetProperty("kind", out _));
 
         using (var invalidArguments = await client.PostAsync(
             $"/api/v1/servers/{serverId}/tools/echo/invoke",

@@ -42,7 +42,17 @@ internal sealed record ToolInvocationResponse(
     DateTimeOffset CompletedAtUtc,
     long DurationMilliseconds,
     bool IsError,
-    IReadOnlyList<McpContentBlock> Content,
+    IReadOnlyList<McpContentBlockResponse> Content,
     JsonElement? StructuredContent,
     JsonElement Raw,
     bool WasTruncated);
+
+internal sealed record McpContentBlockResponse(
+    string Type,
+    string? Text,
+    string? DataBase64,
+    string? MimeType,
+    string? Uri,
+    string? Name,
+    long? Size,
+    JsonElement? Raw);

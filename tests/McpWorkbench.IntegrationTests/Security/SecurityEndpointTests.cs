@@ -1,5 +1,4 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
 namespace A2G.McpWorkbench.IntegrationTests.Security;
@@ -9,7 +8,8 @@ public sealed class SecurityEndpointTests
     [Fact]
     public async Task ApiKeyAndHeaders_AreEnforcedWithoutProtectingHealth()
     {
-        using var application = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        using var factory = new TestWebApplicationFactory();
+        using var application = factory.WithWebHostBuilder(builder =>
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Security:ApiKey"] = "phase-nine-secret" })));
         using var client = application.CreateClient();
         using var unauthorized = await client.GetAsync("/api/v1/servers", TestContext.Current.CancellationToken);
@@ -30,7 +30,7 @@ public sealed class SecurityEndpointTests
     [Fact]
     public async Task OversizedBody_IsRejectedPredictably()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = new TestWebApplicationFactory();
         using var client = application.CreateClient();
         using var content = new StringContent("{\"name\":\"" + new string('x', 1_100_000) + "\"}", System.Text.Encoding.UTF8, "application/json");
         using var response = await client.PostAsync("/api/v1/servers", content, TestContext.Current.CancellationToken);

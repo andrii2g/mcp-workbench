@@ -1,16 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
 namespace A2G.McpWorkbench.IntegrationTests.Api;
 
-public sealed class SystemEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class SystemEndpointTests : IClassFixture<TestWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _application;
+    private readonly TestWebApplicationFactory _application;
     private readonly HttpClient _client;
 
-    public SystemEndpointTests(WebApplicationFactory<Program> application)
+    public SystemEndpointTests(TestWebApplicationFactory application)
     {
         _application = application;
         _client = application.CreateClient();

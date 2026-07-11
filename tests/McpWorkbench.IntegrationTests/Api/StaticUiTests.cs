@@ -1,13 +1,12 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace A2G.McpWorkbench.IntegrationTests.Api;
 
-public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class StaticUiTests : IClassFixture<TestWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
-    public StaticUiTests(WebApplicationFactory<Program> application) => _client = application.CreateClient();
+    public StaticUiTests(TestWebApplicationFactory application) => _client = application.CreateClient();
 
     [Theory]
     [InlineData("/", "text/html")]

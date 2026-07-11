@@ -314,7 +314,7 @@ internal sealed class McpConnectionManager(
         }
         catch (McpSessionException exception) when (exception.Code == "operation_cancelled" && timeout.IsCancellationRequested)
         {
-            throw new McpSessionException("tool_catalog_unavailable", "Loading the MCP tool catalog timed out.");
+            throw new McpSessionException("tool_catalog_timeout", "Loading the MCP tool catalog timed out.");
         }
         finally
         {

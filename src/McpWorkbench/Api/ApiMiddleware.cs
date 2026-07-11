@@ -19,20 +19,17 @@ internal sealed class ApiMiddleware(RequestDelegate next, TimeProvider timeProvi
         try
         {
             await next(context);
+            if (IsApiRequest(context) && !context.Response.HasStarted && context.Response.StatusCode >= 400)
+            {
+                var (code, message) = MapFrameworkStatus(context.Response.StatusCode);
+                await WriteErrorAsync(context, requestId, context.Response.StatusCode, code, message);
+            }
         }
         catch (Exception exception) when (!context.Response.HasStarted)
         {
             var (status, code, message) = Map(exception);
             ApiLog.RequestFailed(logger, requestId, code);
-            context.Response.StatusCode = status;
-            context.Response.ContentType = "application/json; charset=utf-8";
-            await JsonSerializer.SerializeAsync(
-                context.Response.Body,
-                new ApiErrorResponse(
-                    new ApiError(code, message, null),
-                    new ApiMeta(requestId, timeProvider.GetUtcNow())),
-                AppJsonSerializerContext.Default.ApiErrorResponse,
-                context.RequestAborted);
+            await WriteErrorAsync(context, requestId, status, code, message);
         }
     }
 
@@ -61,14 +58,43 @@ internal sealed class ApiMiddleware(RequestDelegate next, TimeProvider timeProvi
         "server_definition_invalid" or "invalid_operation_timeout" => StatusCodes.Status400BadRequest,
         "request_too_large" => StatusCodes.Status413PayloadTooLarge,
         "tool_arguments_invalid" => StatusCodes.Status422UnprocessableEntity,
-        "connection_timeout" or "ping_timeout" or "tool_catalog_unavailable" or "tool_call_timeout" =>
+        "connection_timeout" or "ping_timeout" or "tool_catalog_timeout" or "tool_call_timeout" =>
             StatusCodes.Status504GatewayTimeout,
         "mcp_transport_failed" or "mcp_transport_closed" or "mcp_protocol_error" or "tool_protocol_error" or
-            "result_too_large" => StatusCodes.Status502BadGateway,
+            "tool_catalog_unavailable" or "result_too_large" => StatusCodes.Status502BadGateway,
         "registry_unavailable" or "registry_corrupt" or "unsupported_registry_version" =>
             StatusCodes.Status503ServiceUnavailable,
         "tool_call_cancelled" or "operation_cancelled" => StatusCodes.Status499ClientClosedRequest,
         _ => StatusCodes.Status500InternalServerError
+    };
+
+    private async Task WriteErrorAsync(
+        HttpContext context,
+        string requestId,
+        int status,
+        string code,
+        string message)
+    {
+        context.Response.StatusCode = status;
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await JsonSerializer.SerializeAsync(
+            context.Response.Body,
+            new ApiErrorResponse(
+                new ApiError(code, message, null),
+                new ApiMeta(requestId, timeProvider.GetUtcNow())),
+            AppJsonSerializerContext.Default.ApiErrorResponse,
+            context.RequestAborted);
+    }
+
+    private static bool IsApiRequest(HttpContext context) =>
+        context.Request.Path.StartsWithSegments("/api/v1", StringComparison.OrdinalIgnoreCase);
+
+    private static (string Code, string Message) MapFrameworkStatus(int status) => status switch
+    {
+        StatusCodes.Status404NotFound => ("server_not_found", "The requested API resource was not found."),
+        StatusCodes.Status405MethodNotAllowed => ("method_not_allowed", "The HTTP method is not allowed for this API resource."),
+        StatusCodes.Status415UnsupportedMediaType => ("unsupported_media_type", "The request content type is not supported."),
+        _ => ("invalid_request", "The API request could not be completed.")
     };
 }
 

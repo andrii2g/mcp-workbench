@@ -44,8 +44,7 @@ internal static class ApiEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var includeRuntime = !request.Query.TryGetValue("includeRuntime", out var includeRuntimeValue) ||
-            !bool.TryParse(includeRuntimeValue, out var parsedIncludeRuntime) || parsedIncludeRuntime;
+        var includeRuntime = ParseBooleanQuery(request, "includeRuntime", defaultValue: true);
         var snapshot = await store.GetSnapshotAsync(cancellationToken);
         var definitions = snapshot.Servers
             .Where(server => string.IsNullOrWhiteSpace(search) || server.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
@@ -187,7 +186,7 @@ internal static class ApiEndpoints
         CancellationToken cancellationToken) =>
         ToolListResultAsync(
             serverId,
-            request.Query.TryGetValue("refresh", out var refreshValue) && bool.TryParse(refreshValue, out var refresh) && refresh,
+            ParseBooleanQuery(request, "refresh", defaultValue: false),
             manager,
             context,
             timeProvider,
@@ -232,6 +231,7 @@ internal static class ApiEndpoints
         string toolName,
         InvokeToolRequest? request,
         IMcpConnectionManager manager,
+        IOptions<WorkbenchOptions> options,
         HttpContext context,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -251,6 +251,7 @@ internal static class ApiEndpoints
             outcome.StructuredContent,
             outcome.RawResult,
             outcome.WasTruncated);
+        EnsureInvocationResponseSize(response, options.Value.MaximumResultBytes);
         return Results.Ok(Success(context, timeProvider, response));
     }
 
@@ -260,6 +261,28 @@ internal static class ApiEndpoints
     private static ApiMeta Meta(HttpContext context, TimeProvider timeProvider) => new(
         (string)context.Items[ApiMiddleware.RequestIdItemKey]!,
         timeProvider.GetUtcNow());
+
+    private static bool ParseBooleanQuery(HttpRequest request, string name, bool defaultValue)
+    {
+        if (!request.Query.TryGetValue(name, out var value))
+        {
+            return defaultValue;
+        }
+
+        if (value.Count != 1 || !bool.TryParse(value[0], out var parsed))
+        {
+            throw new McpSessionException("server_definition_invalid", $"Query parameter '{name}' must be a boolean.");
+        }
+
+        return parsed;
+    }
+
+    private static void EnsureInvocationResponseSize(ToolInvocationResponse response, int maximumBytes)
+    {
+        var buffer = new BoundedByteBufferWriter(maximumBytes);
+        using var writer = new Utf8JsonWriter(buffer);
+        JsonSerializer.Serialize(writer, response, AppJsonSerializerContext.Default.ToolInvocationResponse);
+    }
 
     private static IResult ValidationFailure(
         HttpContext context,

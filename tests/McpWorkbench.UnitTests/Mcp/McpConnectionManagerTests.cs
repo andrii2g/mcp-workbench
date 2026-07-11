@@ -307,6 +307,19 @@ public sealed class McpConnectionManagerTests
     }
 
     [Fact]
+    public async Task GetToolsAsync_WhenCatalogLoadTimesOut_ReturnsDedicatedTimeoutCode()
+    {
+        var fixture = Fixture();
+        fixture.Factory.Sessions[0].BlockToolLists = true;
+        await fixture.Manager.ConnectAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken);
+
+        var exception = await Assert.ThrowsAsync<McpSessionException>(async () =>
+            await fixture.Manager.GetToolsAsync(fixture.Definition.Id, false, TestContext.Current.CancellationToken));
+
+        Assert.Equal("tool_catalog_timeout", exception.Code);
+    }
+
+    [Fact]
     public async Task InvokeToolAsync_RecordsToolErrorAsCompletedOutcomeWithoutPayloads()
     {
         var fixture = Fixture();
@@ -462,7 +475,7 @@ public sealed class McpConnectionManagerTests
         {
             ConnectTimeoutSeconds = 5,
             PingTimeoutSeconds = 5,
-            DefaultOperationTimeoutSeconds = 5,
+            DefaultOperationTimeoutSeconds = 1,
             MaximumOperationTimeoutSeconds = 300,
             MaximumArgumentsBytes = 1024,
             MaximumHistoryEntriesPerServer = 2,
@@ -584,6 +597,7 @@ public sealed class McpConnectionManagerTests
         public Exception? DisposeException { get; set; }
         public bool BlockPings { get; set; }
         public bool BlockInvocations { get; set; }
+        public bool BlockToolLists { get; set; }
         public int ListToolsCount { get; private set; }
         public int InvokeCount { get; private set; }
         public IReadOnlyList<ToolCatalogEntry> Tools { get; set; } = [];
@@ -616,12 +630,27 @@ public sealed class McpConnectionManagerTests
             }
         }
 
-        public ValueTask<IReadOnlyList<ToolCatalogEntry>> ListToolsAsync(CancellationToken cancellationToken)
+        public async ValueTask<IReadOnlyList<ToolCatalogEntry>> ListToolsAsync(CancellationToken cancellationToken)
         {
             ListToolsCount++;
-            return ListToolsException is null
-                ? ValueTask.FromResult(Tools)
-                : ValueTask.FromException<IReadOnlyList<ToolCatalogEntry>>(ListToolsException);
+            if (ListToolsException is not null)
+            {
+                throw ListToolsException;
+            }
+
+            if (BlockToolLists)
+            {
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new McpSessionException("operation_cancelled", "Operation cancelled.");
+                }
+            }
+
+            return Tools;
         }
 
         public async ValueTask<ToolInvocationOutcome> InvokeToolAsync(

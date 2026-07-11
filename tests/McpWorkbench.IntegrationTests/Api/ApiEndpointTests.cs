@@ -68,6 +68,24 @@ public sealed class ApiEndpointTests
         }
 
         await AssertOk(client, $"/api/v1/servers?includeRuntime=true&search=local", HttpMethod.Get);
+        using (var withoutRuntime = await client.GetAsync(
+            "/api/v1/servers?includeRuntime=false",
+            TestContext.Current.CancellationToken))
+        {
+            var withoutRuntimeJson = await Json(withoutRuntime);
+            Assert.Equal(
+                JsonValueKind.Null,
+                withoutRuntimeJson.RootElement.GetProperty("data")[0].GetProperty("runtime").ValueKind);
+        }
+
+        using (var invalidQuery = await client.GetAsync(
+            "/api/v1/servers?includeRuntime=invalid",
+            TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, invalidQuery.StatusCode);
+            Assert.True((await Json(invalidQuery)).RootElement.TryGetProperty("error", out _));
+        }
+
         await AssertOk(client, $"/api/v1/servers/{serverId}", HttpMethod.Get);
 
         using var updated = await client.PutAsync(
@@ -98,6 +116,7 @@ public sealed class ApiEndpointTests
             Assert.True(connectedJson.RootElement.GetProperty("data").TryGetProperty("connectDurationMilliseconds", out _));
         }
 
+        await AssertOk(client, $"/api/v1/servers/{serverId}/connect", HttpMethod.Post);
         await AssertOk(client, $"/api/v1/servers/{serverId}/ping", HttpMethod.Post);
         var fakeManager = Assert.IsType<FakeConnectionManager>(application.Services.GetRequiredService<IMcpConnectionManager>());
         fakeManager.PingException = new McpSessionException("tool_protocol_error", "Safe protocol failure.");
@@ -128,7 +147,32 @@ public sealed class ApiEndpointTests
 
         await fakeManager.PingCancelled.Task.WaitAsync(TestContext.Current.CancellationToken);
         fakeManager.BlockPings = false;
-        await AssertOk(client, $"/api/v1/servers/{serverId}/tools", HttpMethod.Get);
+        await AssertOk(client, $"/api/v1/servers/{serverId}/tools?refresh=true", HttpMethod.Get);
+        Assert.True(fakeManager.LastRefresh);
+        using (var invalidRefresh = await client.GetAsync(
+            $"/api/v1/servers/{serverId}/tools?refresh=invalid",
+            TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, invalidRefresh.StatusCode);
+        }
+
+        fakeManager.ToolsException = new McpSessionException("tool_catalog_unavailable", "Catalog rejected.");
+        using (var catalogRejected = await client.GetAsync(
+            $"/api/v1/servers/{serverId}/tools",
+            TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.BadGateway, catalogRejected.StatusCode);
+        }
+
+        fakeManager.ToolsException = new McpSessionException("tool_catalog_timeout", "Catalog timed out.");
+        using (var catalogTimeout = await client.GetAsync(
+            $"/api/v1/servers/{serverId}/tools",
+            TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.GatewayTimeout, catalogTimeout.StatusCode);
+        }
+
+        fakeManager.ToolsException = null;
         await AssertOk(client, $"/api/v1/servers/{serverId}/tools/refresh", HttpMethod.Post);
         await AssertOk(client, $"/api/v1/servers/{serverId}/tools/echo", HttpMethod.Get);
 
@@ -156,6 +200,15 @@ public sealed class ApiEndpointTests
         Assert.Equal(HttpStatusCode.OK, toolError.StatusCode);
         Assert.True((await Json(toolError)).RootElement.GetProperty("data").GetProperty("isError").GetBoolean());
 
+        using (var oversizedResult = await client.PostAsync(
+            $"/api/v1/servers/{serverId}/tools/large/invoke",
+            Content("{\"arguments\":{}}"),
+            TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.BadGateway, oversizedResult.StatusCode);
+            Assert.Equal("result_too_large", (await Json(oversizedResult)).RootElement.GetProperty("error").GetProperty("code").GetString());
+        }
+
         using var disconnected = await client.PostAsync(
             $"/api/v1/servers/{serverId}/disconnect",
             null,
@@ -172,6 +225,29 @@ public sealed class ApiEndpointTests
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         using var missing = await client.GetAsync($"/api/v1/servers/{serverId}", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+
+        using (var unknownRoute = await client.GetAsync("/api/v1/unknown", TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, unknownRoute.StatusCode);
+            Assert.True((await Json(unknownRoute)).RootElement.TryGetProperty("error", out _));
+        }
+
+        using (var wrongMethod = await client.PatchAsync("/api/v1/servers", null, TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.MethodNotAllowed, wrongMethod.StatusCode);
+            Assert.Equal("method_not_allowed", (await Json(wrongMethod)).RootElement.GetProperty("error").GetProperty("code").GetString());
+        }
+
+        using (var unsupportedContent = await client.PostAsync(
+            "/api/v1/servers",
+            new StringContent("{}", Encoding.UTF8, "text/plain"),
+            TestContext.Current.CancellationToken))
+        {
+            Assert.Equal(HttpStatusCode.UnsupportedMediaType, unsupportedContent.StatusCode);
+            Assert.Equal(
+                "unsupported_media_type",
+                (await Json(unsupportedContent)).RootElement.GetProperty("error").GetProperty("code").GetString());
+        }
     }
 
     private static async Task AssertOk(HttpClient client, string path, HttpMethod method, string? json = null)
@@ -208,7 +284,8 @@ public sealed class ApiEndpointTests
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["McpWorkbench:RegistryPath"] = Path.Combine(_directory, "servers.json"),
-                    ["McpWorkbench:LoadToolsOnConnect"] = "false"
+                    ["McpWorkbench:LoadToolsOnConnect"] = "false",
+                    ["McpWorkbench:MaximumResultBytes"] = "1024"
                 }));
             builder.ConfigureServices(services =>
             {
@@ -246,6 +323,8 @@ public sealed class ApiEndpointTests
         public Exception? PingException { get; set; }
         public bool BlockPings { get; set; }
         public TaskCompletionSource PingCancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Exception? ToolsException { get; set; }
+        public bool LastRefresh { get; private set; }
 
         public async ValueTask<ServerRuntimeSnapshot> ConnectAsync(Guid serverId, bool forceReconnect, CancellationToken cancellationToken)
         {
@@ -291,7 +370,13 @@ public sealed class ApiEndpointTests
         public async ValueTask<IReadOnlyList<ToolCatalogEntry>> GetToolsAsync(Guid serverId, bool refresh, CancellationToken cancellationToken)
         {
             await RequiredConnected(serverId, cancellationToken);
-            return [Tool("echo"), Tool("fail")];
+            LastRefresh = refresh;
+            if (ToolsException is not null)
+            {
+                throw ToolsException;
+            }
+
+            return [Tool("echo"), Tool("fail"), Tool("large")];
         }
 
         public async ValueTask<ToolInvocationOutcome> InvokeToolAsync(
@@ -308,7 +393,9 @@ public sealed class ApiEndpointTests
             }
 
             var isError = toolName == "fail";
-            var text = isError ? "failed" : arguments.TryGetProperty("text", out var value) ? value.GetString() ?? "" : "";
+            var text = toolName == "large"
+                ? new string('x', 700)
+                : isError ? "failed" : arguments.TryGetProperty("text", out var value) ? value.GetString() ?? "" : "";
             using var document = JsonDocument.Parse($"{{\"content\":[{{\"type\":\"text\",\"text\":{JsonSerializer.Serialize(text)}}}],\"isError\":{isError.ToString().ToLowerInvariant()}}}");
             return new ToolInvocationOutcome(
                 isError,

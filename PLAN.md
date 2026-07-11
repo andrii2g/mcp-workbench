@@ -451,6 +451,7 @@ disconnection_failed
 ping_failed
 ping_timeout
 tool_catalog_unavailable
+tool_catalog_timeout
 tool_not_found
 tool_arguments_invalid
 tool_call_timeout
@@ -460,6 +461,9 @@ secret_reference_missing
 request_too_large
 result_too_large
 unauthorized
+invalid_request
+method_not_allowed
+unsupported_media_type
 internal_error
 ```
 

@@ -100,15 +100,11 @@ tests, and documentation for that item are present.
 
 - [x] Implement common response/error mapping.
 - [x] Implement request ID middleware.
-- [ ] Implement optional API-key middleware/filter.
 - [x] Implement server CRUD endpoints.
 - [x] Implement connect/disconnect/ping/runtime endpoints.
 - [x] Implement list/refresh/read tool endpoints.
 - [x] Implement invoke endpoint.
-- [ ] Enforce request/body/time limits.
-- [ ] Add security headers.
-- [ ] Update OpenAPI only if it remains AOT-safe and explicitly selected; otherwise keep
-      `.http` contract file authoritative.
+- [x] Keep `docs/API.md` authoritative; OpenAPI was not selected for version 1.
 - [x] Add route/status/contract integration tests.
 
 ## Phase 8 — Static UI

@@ -65,10 +65,14 @@ that could expose sensitive data.
 | 400 | Invalid request or invalid server definition |
 | 401 | API key missing or invalid |
 | 404 | Server or tool not found |
+| 405 | HTTP method is not supported by the API resource |
 | 409 | Invalid lifecycle transition or duplicate normalized name |
+| 413 | Request payload exceeds the configured limit |
+| 415 | Request content type is unsupported |
 | 422 | Tool arguments rejected before or by MCP invocation |
 | 429 | Local invocation concurrency limit reached, when configured |
 | 502 | MCP transport/protocol failure |
+| 503 | Registry or required local service unavailable |
 | 504 | MCP connect, ping, discovery, or call timeout |
 | 500 | Unexpected application failure |
 

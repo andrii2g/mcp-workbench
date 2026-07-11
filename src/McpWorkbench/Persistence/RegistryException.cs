@@ -1,4 +1,4 @@
-namespace McpWorkbench.Persistence;
+namespace A2G.McpWorkbench.Persistence;
 
 internal sealed class RegistryException : Exception
 {

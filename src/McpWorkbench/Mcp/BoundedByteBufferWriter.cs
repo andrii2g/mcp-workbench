@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal sealed class BoundedByteBufferWriter(int maximumBytes) : IBufferWriter<byte>
 {

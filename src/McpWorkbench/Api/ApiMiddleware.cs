@@ -1,10 +1,10 @@
 using System.Text.Json;
-using McpWorkbench.Contracts;
-using McpWorkbench.Mcp;
-using McpWorkbench.Persistence;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Mcp;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Serialization;
 
-namespace McpWorkbench.Api;
+namespace A2G.McpWorkbench.Api;
 
 internal sealed class ApiMiddleware(RequestDelegate next, TimeProvider timeProvider, ILogger<ApiMiddleware> logger)
 {

@@ -1,7 +1,7 @@
-using McpWorkbench.Domain;
-using McpWorkbench.Security;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Security;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal interface IMcpClientSessionFactory
 {

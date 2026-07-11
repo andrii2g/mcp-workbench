@@ -2,13 +2,13 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Options;
-using McpWorkbench.Persistence;
-using McpWorkbench.Security;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Options;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Security;
 using Microsoft.Extensions.Options;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal sealed class McpConnectionManager(
     IServerDefinitionStore store,

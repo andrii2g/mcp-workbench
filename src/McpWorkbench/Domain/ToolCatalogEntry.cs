@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace McpWorkbench.Domain;
+namespace A2G.McpWorkbench.Domain;
 
 internal sealed record McpToolAnnotations(
     string? Title,

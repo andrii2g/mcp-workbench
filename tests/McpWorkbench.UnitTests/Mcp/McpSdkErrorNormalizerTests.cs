@@ -1,7 +1,7 @@
-using McpWorkbench.Mcp;
+using A2G.McpWorkbench.Mcp;
 using ModelContextProtocol;
 
-namespace McpWorkbench.UnitTests.Mcp;
+namespace A2G.McpWorkbench.UnitTests.Mcp;
 
 public sealed class McpSdkErrorNormalizerTests
 {

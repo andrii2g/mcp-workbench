@@ -2,7 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
-namespace McpWorkbench.IntegrationTests.Security;
+namespace A2G.McpWorkbench.IntegrationTests.Security;
 
 public sealed class SecurityEndpointTests
 {

@@ -1,9 +1,9 @@
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Security;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Security;
+using A2G.McpWorkbench.Serialization;
 
-namespace McpWorkbench.UnitTests.Security;
+namespace A2G.McpWorkbench.UnitTests.Security;
 
 public sealed class SecretReferenceResolverTests
 {

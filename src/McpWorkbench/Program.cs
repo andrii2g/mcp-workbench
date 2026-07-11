@@ -1,9 +1,9 @@
-using McpWorkbench.Api;
-using McpWorkbench.Mcp;
-using McpWorkbench.Options;
-using McpWorkbench.Persistence;
-using McpWorkbench.Security;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Api;
+using A2G.McpWorkbench.Mcp;
+using A2G.McpWorkbench.Options;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Security;
+using A2G.McpWorkbench.Serialization;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateSlimBuilder(args);

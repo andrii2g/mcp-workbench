@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace McpWorkbench.Options;
+namespace A2G.McpWorkbench.Options;
 
 internal sealed class WorkbenchOptionsValidator : IValidateOptions<WorkbenchOptions>
 {

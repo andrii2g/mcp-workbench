@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Serialization;
 
-namespace McpWorkbench.Domain;
+namespace A2G.McpWorkbench.Domain;
 
 [JsonConverter(typeof(McpContentKindJsonConverter))]
 internal enum McpContentKind

@@ -1,4 +1,4 @@
-namespace McpWorkbench.Domain;
+namespace A2G.McpWorkbench.Domain;
 
 internal sealed record AppError(string Code, string Message);
 

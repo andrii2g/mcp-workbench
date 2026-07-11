@@ -1,10 +1,10 @@
 using System.Text;
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Persistence;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Serialization;
 
-namespace McpWorkbench.UnitTests.Persistence;
+namespace A2G.McpWorkbench.UnitTests.Persistence;
 
 public sealed class JsonServerDefinitionStoreTests
 {

@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Domain;
 
-namespace McpWorkbench.Security;
+namespace A2G.McpWorkbench.Security;
 
 internal sealed record ResolvedStdioTransportSettings(
     string Command,

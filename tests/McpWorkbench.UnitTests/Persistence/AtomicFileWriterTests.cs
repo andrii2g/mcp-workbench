@@ -1,7 +1,7 @@
 using System.Text;
-using McpWorkbench.Persistence;
+using A2G.McpWorkbench.Persistence;
 
-namespace McpWorkbench.UnitTests.Persistence;
+namespace A2G.McpWorkbench.UnitTests.Persistence;
 
 public sealed class AtomicFileWriterTests
 {

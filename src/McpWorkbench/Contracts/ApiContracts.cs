@@ -1,8 +1,8 @@
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Validation;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Validation;
 
-namespace McpWorkbench.Contracts;
+namespace A2G.McpWorkbench.Contracts;
 
 internal sealed record ApiMeta(string RequestId, DateTimeOffset TimestampUtc);
 internal sealed record ApiResponse<T>(T Data, ApiMeta Meta);

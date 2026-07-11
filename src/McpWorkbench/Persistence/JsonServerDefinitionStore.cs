@@ -1,11 +1,11 @@
 using System.Text.Json;
-using McpWorkbench.Contracts;
-using McpWorkbench.Domain;
-using McpWorkbench.Serialization;
-using McpWorkbench.Validation;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Serialization;
+using A2G.McpWorkbench.Validation;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace McpWorkbench.Persistence;
+namespace A2G.McpWorkbench.Persistence;
 
 internal sealed class JsonServerDefinitionStore : IServerDefinitionStore, IDisposable
 {

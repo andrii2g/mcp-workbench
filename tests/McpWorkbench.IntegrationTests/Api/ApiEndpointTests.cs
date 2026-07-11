@@ -2,16 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Mcp;
-using McpWorkbench.Persistence;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Mcp;
+using A2G.McpWorkbench.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace McpWorkbench.IntegrationTests.Api;
+namespace A2G.McpWorkbench.IntegrationTests.Api;
 
 public sealed class ApiEndpointTests
 {

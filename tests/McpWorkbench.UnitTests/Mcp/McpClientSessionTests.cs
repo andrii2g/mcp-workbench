@@ -1,9 +1,9 @@
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Mcp;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Mcp;
 using ModelContextProtocol.Protocol;
 
-namespace McpWorkbench.UnitTests.Mcp;
+namespace A2G.McpWorkbench.UnitTests.Mcp;
 
 public sealed class McpClientSessionTests
 {

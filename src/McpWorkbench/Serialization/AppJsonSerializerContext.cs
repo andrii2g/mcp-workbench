@@ -1,10 +1,10 @@
 using System.Text.Json.Serialization;
-using McpWorkbench.Contracts;
-using McpWorkbench.Domain;
-using McpWorkbench.Persistence;
-using McpWorkbench.Validation;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Validation;
 
-namespace McpWorkbench.Serialization;
+namespace A2G.McpWorkbench.Serialization;
 
 internal sealed record HealthResponse(string Status);
 

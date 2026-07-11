@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
-namespace McpWorkbench.IntegrationTests.Api;
+namespace A2G.McpWorkbench.IntegrationTests.Api;
 
 public sealed class SystemEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {

@@ -2,7 +2,7 @@ using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal static class McpSdkErrorNormalizer
 {

@@ -163,7 +163,6 @@ mcp-workbench/
 ├── .gitignore
 ├── AGENTS.md
 ├── CHANGELOG.md
-├── CODEX-START.md
 ├── Directory.Build.props
 ├── Directory.Packages.props
 ├── Dockerfile

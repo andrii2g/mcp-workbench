@@ -1,15 +1,15 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using McpWorkbench.Api;
-using McpWorkbench.Contracts;
-using McpWorkbench.Mcp;
-using McpWorkbench.Options;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Api;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Mcp;
+using A2G.McpWorkbench.Options;
+using A2G.McpWorkbench.Serialization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 
-namespace McpWorkbench.Security;
+namespace A2G.McpWorkbench.Security;
 
 internal sealed class SecurityMiddleware(RequestDelegate next, IOptions<SecurityOptions> options, TimeProvider timeProvider)
 {

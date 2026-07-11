@@ -1,7 +1,7 @@
-using McpWorkbench.Security;
+using A2G.McpWorkbench.Security;
 using Microsoft.Extensions.Logging;
 
-namespace McpWorkbench.UnitTests.Security;
+namespace A2G.McpWorkbench.UnitTests.Security;
 
 public sealed class BindingSecurityPolicyTests
 {

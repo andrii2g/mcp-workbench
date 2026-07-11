@@ -1,11 +1,11 @@
-using McpWorkbench.Domain;
-using McpWorkbench.Options;
-using McpWorkbench.Security;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Options;
+using A2G.McpWorkbench.Security;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal sealed class McpClientSessionFactory(
     ILoggerFactory loggerFactory,

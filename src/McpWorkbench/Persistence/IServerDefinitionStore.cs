@@ -1,6 +1,6 @@
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Domain;
 
-namespace McpWorkbench.Persistence;
+namespace A2G.McpWorkbench.Persistence;
 
 internal interface IServerDefinitionStore
 {

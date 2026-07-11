@@ -1,4 +1,4 @@
-namespace McpWorkbench.Validation;
+namespace A2G.McpWorkbench.Validation;
 
 internal sealed record ValidationResult<T>(T? Value, IReadOnlyList<ValidationError> Errors)
 {

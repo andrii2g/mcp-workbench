@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using System.Text.Json;
-using McpWorkbench.Domain;
-using McpWorkbench.Mcp;
-using McpWorkbench.Options;
-using McpWorkbench.Persistence;
-using McpWorkbench.Security;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Mcp;
+using A2G.McpWorkbench.Options;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace McpWorkbench.IntegrationTests.Mcp;
+namespace A2G.McpWorkbench.IntegrationTests.Mcp;
 
 public sealed class StdioMcpClientSessionTests
 {

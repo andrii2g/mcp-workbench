@@ -1,16 +1,16 @@
 using System.Diagnostics;
 using System.Text.Json;
-using McpWorkbench.Contracts;
-using McpWorkbench.Domain;
-using McpWorkbench.Mcp;
-using McpWorkbench.Options;
-using McpWorkbench.Persistence;
-using McpWorkbench.Security;
-using McpWorkbench.Serialization;
-using McpWorkbench.Validation;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Mcp;
+using A2G.McpWorkbench.Options;
+using A2G.McpWorkbench.Persistence;
+using A2G.McpWorkbench.Security;
+using A2G.McpWorkbench.Serialization;
+using A2G.McpWorkbench.Validation;
 using Microsoft.Extensions.Options;
 
-namespace McpWorkbench.Api;
+namespace A2G.McpWorkbench.Api;
 
 internal static class ApiEndpoints
 {

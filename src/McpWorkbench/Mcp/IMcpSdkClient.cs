@@ -1,7 +1,7 @@
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal interface IMcpSdkClient : IAsyncDisposable
 {

@@ -1,9 +1,9 @@
 using System.Text.Json;
-using McpWorkbench.Contracts;
-using McpWorkbench.Domain;
-using McpWorkbench.Serialization;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Domain;
+using A2G.McpWorkbench.Serialization;
 
-namespace McpWorkbench.UnitTests.Serialization;
+namespace A2G.McpWorkbench.UnitTests.Serialization;
 
 public sealed class AppJsonSerializerContextTests
 {

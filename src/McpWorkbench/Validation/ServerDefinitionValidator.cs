@@ -1,7 +1,7 @@
-using McpWorkbench.Contracts;
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Contracts;
+using A2G.McpWorkbench.Domain;
 
-namespace McpWorkbench.Validation;
+namespace A2G.McpWorkbench.Validation;
 
 internal static class ServerDefinitionValidator
 {

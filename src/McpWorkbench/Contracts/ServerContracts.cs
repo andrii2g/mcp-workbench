@@ -1,6 +1,6 @@
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Domain;
 
-namespace McpWorkbench.Contracts;
+namespace A2G.McpWorkbench.Contracts;
 
 internal sealed record StdioTransportRequest(
     string? Command,

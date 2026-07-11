@@ -1,8 +1,8 @@
 using System.Text;
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Domain;
 using ModelContextProtocol.Protocol;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal static class ToolCatalogMapper
 {

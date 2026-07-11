@@ -1,6 +1,6 @@
-using McpWorkbench.Security;
+using A2G.McpWorkbench.Security;
 
-namespace McpWorkbench.UnitTests.Security;
+namespace A2G.McpWorkbench.UnitTests.Security;
 
 public sealed class SecurityMiddlewareTests
 {

@@ -2,7 +2,7 @@ using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace McpWorkbench.TestServer;
+namespace A2G.McpWorkbench.TestServer;
 
 internal static class TestTools
 {

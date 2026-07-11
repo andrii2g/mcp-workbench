@@ -1,8 +1,8 @@
 using System.Text.Json;
-using McpWorkbench.Mcp;
+using A2G.McpWorkbench.Mcp;
 using ModelContextProtocol.Protocol;
 
-namespace McpWorkbench.UnitTests.Mcp;
+namespace A2G.McpWorkbench.UnitTests.Mcp;
 
 public sealed class ToolCatalogMapperTests
 {

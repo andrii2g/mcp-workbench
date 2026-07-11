@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Domain;
 
-namespace McpWorkbench.Serialization;
+namespace A2G.McpWorkbench.Serialization;
 
 internal sealed class McpTransportKindJsonConverter : JsonConverter<McpTransportKind>
 {

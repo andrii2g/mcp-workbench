@@ -1,4 +1,4 @@
-namespace McpWorkbench.UnitTests;
+namespace A2G.McpWorkbench.UnitTests;
 
 public sealed class BootstrapTests
 {

@@ -1,7 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 
-namespace McpWorkbench.IntegrationTests.Api;
+namespace A2G.McpWorkbench.IntegrationTests.Api;
 
 public sealed class StaticUiTests : IClassFixture<WebApplicationFactory<Program>>
 {

@@ -1,6 +1,6 @@
-using McpWorkbench.Options;
+using A2G.McpWorkbench.Options;
 
-namespace McpWorkbench.UnitTests.Options;
+namespace A2G.McpWorkbench.UnitTests.Options;
 
 public sealed class WorkbenchOptionsValidatorTests
 {

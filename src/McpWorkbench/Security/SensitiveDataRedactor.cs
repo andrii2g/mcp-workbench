@@ -1,4 +1,4 @@
-namespace McpWorkbench.Security;
+namespace A2G.McpWorkbench.Security;
 
 internal static class SensitiveDataRedactor
 {

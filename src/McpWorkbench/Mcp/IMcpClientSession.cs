@@ -1,7 +1,7 @@
 using System.Text.Json;
-using McpWorkbench.Domain;
+using A2G.McpWorkbench.Domain;
 
-namespace McpWorkbench.Mcp;
+namespace A2G.McpWorkbench.Mcp;
 
 internal interface IMcpClientSession : IAsyncDisposable
 {
